@@ -1,6 +1,14 @@
-type: 'ES'
+type: 'HS'
 target_file: 'master.csv'
 log: 'log.txt'
+ordered_headers:
+  - 'first'
+  - 'last'
+  - 'e-mail - work' 
+  - 'grade level'
+  - 'tag'
+  - 'lead'
+  - 'school'
 fields: 
 # - source_name: 'PERS_NAME'
 #   split_by: ' '

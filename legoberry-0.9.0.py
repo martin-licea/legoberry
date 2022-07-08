@@ -6,15 +6,17 @@ from nested_lookup import nested_lookup
 import yaml
 
 def main():
-    os.chdir('..')
+    #os.chdir('..')
     conf = get_configs()
-    clean_previous_runs([conf['target_file'], conf['log']])
+    #print(conf)
+    clean_previous_runs(conf['target_file'], conf['log'])
     legos = glob.glob('*.csv')
     school_type = conf['type']
+    ordered_headers = conf['ordered_headers']
     target_headers = nested_lookup('target_name', conf)
+    #target_headers = list(target_headers)
     target_headers = list(set(target_headers)) # remove dupes
-    lego_tower = pd.DataFrame(columns=target_headers)
-
+    lego_tower = pd.DataFrame(columns=ordered_headers)
     for lego in legos:
         lego_data = pd.read_csv(lego)
         lego_data['filename'] = lego.split('.')[0]
@@ -33,7 +35,14 @@ def main():
         mini_lego_tower = lego_tower[0:keep_size]
         lego_tower = lego_tower[keep_size:]
         #print(mini_lego_tower)
-        mini_lego_tower[target_headers].to_csv(file_name, index=False)
+        df = mini_lego_tower[ordered_headers].copy()
+        print('%%%%5')
+        print(school_type)
+        if school_type != "ES":
+            print('got to check')
+            #df = df.assign(df['grade level']='MS')
+            df.loc[:, 'grade level'] = school_type
+        df.to_csv(file_name, index=False)
         lego_tower_size -= conf['max_target_file_size']
         i += 1
 
@@ -41,18 +50,16 @@ def main():
         f.write(f'legoberry found a total of {len(legos)} files to aggregate')
         f.write(f"\nwriting a total of {i} file(s) at a max {conf['max_target_file_size']} data rows per")
 
-def clean_previous_runs(files_to_clean: list):
-    for file in files_to_clean:
-        name, extension = file.split('.')
-        if name == 'master':
-            master_files = glob.glob(f'{name}*.{extension}')
-            if master_files:
-                for master in master_files:
-                    os.remove(master)
-            else: 
-                print(f'{file} does not exist in this directory. Will not remove anything')
-        else:
-            os.remove(file) if glob.glob(file) else print(f'{file} does not exist in this directory. Will not remove anything')
+def clean_previous_runs(target_file, log_file):
+    name, extension = target_file.split('.')
+    master_files = glob.glob(f'{name}*.{extension}')
+    for master in master_files:
+        os.remove(master)
+    try:
+        os.remove(log_file)
+    except:
+        print(f'will not remove {log_file}. it does not exist')
+
 
 def find_transformations(conf: dict, lego_data):
     fields = conf['fields']
