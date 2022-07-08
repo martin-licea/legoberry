@@ -9,7 +9,7 @@ This file must be named config.yml. Sometimes windows file explorer doesn't show
 | ------ | ------ | ------ |
 | type | school level  like HS or MS| ES |
 | target_file | name of file where source csvs will be merged | master.csv |
-| ordered_headers | a list of headers to be ordered  |``` ordered_headers: </br>  - 'first'</br>  - 'last'</br>  - 'e-mail - work' </br>  - 'grade level'</br>  - 'tag'</br>  - 'lead'</br>  - 'school' ``` |
+| ordered_headers | a list of headers to be ordered  |<pre> ordered_headers: </br>  - 'first'</br>  - 'last'</br>  - 'e-mail - work' </br>  - 'grade level'</br>  - 'tag'</br>  - 'lead'</br>  - 'school' </pre> |
 | OneDrive | [plugins/onedrive/README.md][PlOd] | |
 | Medium | [plugins/medium/README.md][PlMe] | |
 | Google Analytics | [plugins/googleanalytics/README.md][PlGa] | |
