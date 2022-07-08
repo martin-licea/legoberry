@@ -1,4 +1,5 @@
 *.csv
+mas
 dist/
 .venv/
 __pycache__/
