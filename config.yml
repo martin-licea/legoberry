@@ -1,65 +1,73 @@
-type: 'HS'
-target_file: 'master.csv'
+target_file: master.xlsx
 log: 'log.txt'
-ordered_headers:
-  - 'first'
-  - 'last'
-  - 'e-mail - work' 
-  - 'grade level'
-  - 'tag'
-  - 'lead'
-  - 'school'
-fields: 
-# - source_name: 'PERS_NAME'
-#   split_by: ' '
-#   split:
-#   - index: 2
-#     target_name: 'first'
-#   - index: 3
-#     target_name: 'last'
-- source_name: 'FIRST_NAME'
-  target_name: 'first'
-- source_name: 'LAST_NAME'
-  target_name: 'last'
-- source_name: 'PERS_EMAIL'
-  target_name: e-mail - work
-- source_name: 'TITLE1'
-  target_name: grade level
+fields:
+- source_name: 'First'
+  casing: 'proper'
+- source_name: 'Last'
+  casing: 'proper'
+- source_name: 'State'
+  target_name: tags
+  casing: 'upper'
+  in_list: states.yml
+- source_name: 'Email'
+- source_name:
+  field_number: 18
+  split_by: ': '
+  split:
+  - index: 2
+    expand_on: 'Email'
+    target_name: "Alternate E-mail"
+- source_name:
+  field_number: 16
+  casing: 'lower'
+  split_by: ': '
+  split:
+  - index: 2
+    target_name: grade level
   replace:
   - from: 'Early Childhood Educator'
     to: 'prek'
-  - from: 'Kindergarten Teacher'
+  - from: 'Kindergarten'
     to: 'kinder'
-  - from: '1st Grade Teacher'
+  - from: 'Grade One'
     to: 'grade 1'
-  - from: '2nd Grade Teacher'
+  - from: 'Grade Two'
     to: 'grade 2'
-  - from: '3rd Grade Teacher'
+  - from: 'Grade Three'
     to: 'grade 3'
-  - from: '4th Grade Teacher'
+  - from: 'Grade Four'
     to: 'grade 4'
-  - from: '5th Grade Teacher'
+  - from: 'Grade Five'
     to: 'grade 5'
-  - from: '6th Grade Teacher'
+  - from: 'Grade Six'
     to: 'grade 6'
-  - from: 'Special Needs Educator'
-    to: 'sped'
   - from: 'Math Educator'
-    to: 'unknown'
+    to: 'other'
   - from: 'Social Studies Educator'
     to: 'unknown'
-  - from: 'Elementary Teacher'
-    to: 'unknown'
-  - from: 'Language Arts Educator'
+  - from: 'Elementary ESL'
+    to: 'esl'
+  - from: 'Elementary Reading Teacher'
     to: 'reading'
-- source_name: 'P_STATE'
-  secondary_source_name: 'STATE'
-  target_name: 'tag'
-- source_name: 'MANAGER'
-  target_name: 'lead'
-- source_name: 'I_SHORT_NM'
-  secondary_source_name: 'filename' # new field
-  target_name: 'school'
-- target_name: 'lead'
-  default_value: 'mch' #new field. Only works if there is no source_name field.
+  - from: 'Elementary Special Education'
+    to: 'sped'
+  - from: 'Middle School'
+    to: 'ms'
+  - from: 'High School'
+    to: 'hs'
+- target_name: 'company'
+  default_value: 'customer'
+- target_name: 'Extra Field 1'
+  default_value: 'customer'
+- source_name: 'job title'
+  default_value: '2024'
+ordered_headers:
+  - First
+  - Last
+  - tags
+  - Email
+  - grade level
+  - company
+  - Extra Field 1
+  - job title
 max_target_file_size: 500
