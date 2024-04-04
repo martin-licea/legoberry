@@ -20,7 +20,7 @@ def main():
         application_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(application_path)
     cwd = os.getcwd()
-    
+    print(cwd)
     conf = get_configs()
     #print(conf)
     clean_previous_runs(conf['target_file'], conf['log'])
