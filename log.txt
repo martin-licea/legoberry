@@ -1,2 +1,0 @@
-legoberry found a total of 2 files to aggregate
-writing a total of 2 file(s) at a max 500 data rows per

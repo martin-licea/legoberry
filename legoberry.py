@@ -55,6 +55,11 @@ def main():
         lego_tower = lego_tower[keep_size:]
         #print(mini_lego_tower)
         df = mini_lego_tower[ordered_headers].copy()
+        if conf.get('remove_duplicates', None):
+            if conf.get('fields_to_consider_duplicates', None):
+                df = df.drop_duplicates(subset=conf['fields_to_consider_duplicates'])
+            else:
+                df = df.drop_duplicates()
         #if school_type != "ES":
             #df = df.assign(df['grade level']='MS')
             #df.loc[:, 'grade level'] = school_type
@@ -144,7 +149,6 @@ def find_transformations(conf: dict, lego_data):
             lego_data[field_name] = lego_data[field_name].apply(lambda x: f'****{x}****' if x not in in_list else x)
             
     lego_data = lego_data.rename(columns = rename_mapper)
-
 
     return lego_data
 

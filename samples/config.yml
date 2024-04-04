@@ -70,4 +70,10 @@ ordered_headers:
   - company
   - Extra Field 1
   - job title
+remove_duplicates: true
+fields_to_consider_duplicates:
+  - First
+  - Last
+  - Email
+  - tags
 max_target_file_size: 500
