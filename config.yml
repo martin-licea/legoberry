@@ -1,0 +1,73 @@
+log: 'log.txt'
+source_files: 
+  - name: '3-28-25 233962-234231.dat'
+    delimiter: tab
+  - name: '3-28-24 233962-234231.dat'
+    delimiter: tab
+fields_in_field:
+  - field_name: "Custom Fields"
+    delimiter: "|"
+    key_value_splitter: ":"
+    ignore_junk_fields: 
+    - "n"
+output_file_configs:
+- keep_source_file_name: true
+  output_file_suffix: '_Constant_Contact'
+  output_file_extension: '.xlsx'
+  fields:
+  - source_name: Title
+    alias: 'Org Defined ID'
+  - alias: 'UPDATE'
+    default_value: 'UPDATE'
+  - source_name: 'First'
+    casing: 'proper'
+    alias: 'First Name'
+  - alias: 'Middle Name'
+    default_value: ''
+  - source_name: 'City'
+    casing: 'proper'
+  - source_name: 'Last'
+    casing: 'proper'
+    alias: 'Last Name'
+  - source_name: 'Is Active'
+    default_value: '1'
+  - source_name: 'Address'
+    alias: 'Address 1'
+    casing: 'proper'
+    replace:
+    - from: ','
+      to: ''
+  - source_name: '\‘Address 2'
+    alias: 'Address 2'
+  - source_name: 'State'
+    alias: 'State/Province'
+    casing: 'upper'
+    in_list: states.yml
+  - source_name: 'Zip'
+    alias: 'Zip/Postal Code'
+  - source_name: 'Country'
+    default_value: ''
+  - source_name: 'Phone'
+    alias: 'Home Phone'
+  - source_name: 'Date of Birth (Required by UCSD)'
+    alias: 'DOB'
+  - source_name: 'Gender (Required by UCSD)'
+    alias: Gender
+  ordered_headers:
+  - UPDATE
+  - Username
+  - Org Defined ID
+  - First Name
+  - Middle Name
+  - Last Name
+  - Password
+  - Is Active
+  - Address 1
+  - Address 2
+  - City
+  - State/Province
+  - Zip/Postal Code
+  - Country
+  - Home Phone
+  - DOB
+  - Gender

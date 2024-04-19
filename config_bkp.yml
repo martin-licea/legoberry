@@ -1,0 +1,68 @@
+target_file: master_1.xlsx
+log: 'log.txt'
+fields:
+- source_name: Title
+  target_name: 'Org Defined ID'
+- target_name: 'UPDATE'
+  default_value: 'UPDATE'
+- source_name: 'First'
+  casing: 'proper'
+  target_name: 'First Name'
+- target_name: 'Middle Name'
+  default_value: ''
+- source_name: 'City'
+  casing: 'proper'
+- source_name: 'Last'
+  casing: 'proper'
+  target_name: 'Last Name'
+- source_name: 'Is Active'
+  default_value: '1'
+- source_name: 'Address'
+  target_name: 'Address 1'
+  casing: 'proper'
+  replace:
+  - from: ','
+    to: ''
+- source_name: '\‘Address 2'
+  target_name: 'Address 2'
+- source_name: 'State'
+  target_name: 'State/Province'
+  casing: 'upper'
+  in_list: states.yml
+- source_name: 'Zip'
+  target_name: 'Zip/Postal Code'
+- source_name: 'Country'
+  default_value: ''
+- source_name: 'Phone'
+  target_name: 'Home Phone'
+- source_name:
+  field_number: 20
+  split_by: ': '
+  split:
+  - index: 2
+    target_name: 'DOB'
+- source_name:
+  field_number: 22
+  split_by: ': '
+  split:
+  - index: 2
+    target_name: 'Gender'
+ordered_headers:
+- UPDATE
+- Username
+- Org Defined ID
+- First Name
+- Middle Name
+- Last Name
+- Password
+- Is Active
+- Address 1
+- Address 2
+- City
+- State/Province
+- Zip/Postal Code
+- Country
+- Home Phone
+- DOB
+- Gender
+max_target_file_size: 50000

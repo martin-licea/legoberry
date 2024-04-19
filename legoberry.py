@@ -180,4 +180,16 @@ def get_configs():
             return yaml.full_load(file)
 
 if __name__ == '__main__':
+    #TODO: allow number types
+    #TODO: add abbreviation option
+    #TODO: add search/replace partion in cell 
+    #TODO: add remove string feature
+    #TODO: format (ex: St., Ave., N., etc.)
+    #TODO: format zipcode type and remove extra digits
+    #TODO: format for phone number type
+    #TODO: remove cell value if format fails.
+    #TODO: build a column based on other columns being merged First.Last
+    #TODO: format to number length
+    #TODO: output filenames should be based on the input file name
+    #TODO: remove duplicates
     main()
