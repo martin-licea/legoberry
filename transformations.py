@@ -1,6 +1,10 @@
 import polars as pl
 from icecream import ic
 import yaml
+import re
+
+ic.configureOutput(contextAbsPath=True)
+
 def do_explore(conifg, df):
     pass
 
@@ -43,14 +47,15 @@ def explode_custom_fields(df: pl.DataFrame, on_field: str, delimiter: str, split
         # Drop the "Custom Fields" column
         df = df.drop(on_field)
         # order by row number asc and drop row number
-        df = df.sort("row_number", descending=False).drop("row_number")
-        write_path = "output.csv"
-        df.write_csv(write_path)
+        df = df.sort(pl.col("row_number").cast(pl.Int64))#.drop("row_number")
+        # write_path = "output.csv"
+        # df.write_csv(write_path)
         #show the last 5 rows
-        ic(df)
+        ic("printing with row_number")
+        
     else: 
         raise ValueError(f"{field_name} not found in the DataFrame.")
-    #ic(df)
+    #
     return df
 
 def rename_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -66,7 +71,7 @@ def rename_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     #rename source field to alias
     ic(f"will rename {source} to {alias}")
     df = df.rename({source: alias})
-    ic(df)
+    
     return df
 
 def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -93,9 +98,14 @@ def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     for item in replace:
         from_string=item.get("from")
         to_string=item.get("to")
-        ic(f"will replace {from_string} with {to_string} in {field_name}")
-        df = df.with_columns(pl.col(field_name).str.replace_all(from_string, to_string))
-        ic(df)
+        is_expression = item.get("is_expression")
+        ic(is_expression)
+        is_literal = False if is_expression == True else True #flip it for ease of use in the config
+        ic(is_literal)
+        ic(rf"will replace {from_string} with {to_string} in {field_name}")
+        df = df.with_columns(pl.col(field_name).str.replace_all(from_string, to_string, literal=is_literal))
+        #df = df.with_columns(pl.col(field_name).str.replace_all("[Dd]r($| )", "Dr.$1", literal=False))
+        
     return df
 
 def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -114,7 +124,7 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         df = df.with_columns(pl.col(field_name).str.to_titlecase())
     else:
         ic(f"{casing} not supported.")
-    ic(df)
+    
     return df
 
 def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -132,7 +142,7 @@ def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 
     ic(f"will validate {field_name} against {in_list}")
     df = df.with_columns(pl.col(field_name).apply(lambda x: f'****{x}****' if x not in list_yaml else x))
-    ic(df)
+    
     return df
 
 def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -147,20 +157,165 @@ def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if field not in df.columns:
             df = df.with_columns(pl.Series([None]).alias(field))
     df = df.select(select_fields)
-    ic(df)
+    
     return df
 
 def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     alias = field.get("alias")
     default_value = field.get("default_value")
-
-
     if not alias:
         ic(f"{alias} not found in the field.")
         return df
     if alias in df.columns:
         ic(f"{alias} already exists in the DataFrame.")
         return df
+    if not default_value:
+        ic(f"{default_value} not found in the field.")
+        return df
+
     ic(f"will create {alias} with default value {default_value}")
+    if  "{" in default_value and "}" in default_value: 
+        split_values = re.split(r'[{}]', default_value)
+        split_values = [f"pl.col('{value.strip()}')" if i % 2 == 1 else f"'{value}'" for i, value in enumerate(split_values) if value.strip()]        # Join the list back into a string
+        default_value = "+".join(split_values)
+        ic(default_value)
+        df = df.with_columns(eval(default_value).alias(alias))
+        return df
     df = df.with_columns(pl.Series([default_value]).alias(alias))
+    return df
+
+def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
+    source = field.get("source_name")
+    alias = field.get("alias")
+    field_name = alias if alias else source
+    data_type = field.get("data_type")
+    data_format = field.get("data_format")
+    reformat_to = field.get("reformat_to")
+    if not data_type:
+        ic(f"{data_type} not found in the field.")
+        return df
+
+    if data_type == "date":
+        if not data_format:
+            ic(f"{data_format} not found in the field.")
+            return df
+        ic(f"will format {field_name} as date with format {data_format}")
+        #if date conversion fails, add *** to the field and keep it as string
+        df = df.with_columns(pl.col(field_name).str.to_date(data_format))
+        #df = df.with_columns(pl.col(field_name).apply(lambda x: x if not x else f'***{x}'))
+        if reformat_to:
+            ic(f"will reformat {field_name} to {reformat_to}")
+            df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
+        else:
+            ic(f"reformat_to not found in the field.")
+    elif data_type == "integer":
+        ic(f"will convert {field_name} to integer.")
+        df = df.with_columns(pl.col(field_name).cast(pl.Int64))
+    elif data_type == "number":
+        ic(f"will convert {field_name} to number.")
+        df = df.with_columns(pl.col(field_name).cast(pl.Float64))
+    elif data_type == "string":
+        ic(f"will convert {field_name} to string.")
+        df = df.with_columns(pl.col(field_name).cast(pl.Utf8))
+    elif data_type == "boolean":
+        ic(f"will convert {field_name} to boolean.")
+        df = df.with_columns(pl.col(field_name).cast(pl.Boolean))
+    elif data_type == "phone number":
+        ic(f"will convert {field_name} to phone number.")
+        #ex) (123) 456-7890 or 123-456-7890 or 123.456.7890 or 1234567890 -> (123) 456-7890
+        df = df.with_columns(pl.col(field_name).str.replace_all(r"[^\d]", ""))
+        # df = df.with_columns(
+        #     "(" + pl.col(field_name).str.slice(0, 3) + ") " 
+        #     + pl.col(field_name).str.slice(3, 3) 
+        #     + "-" + pl.col(field_name).str.slice(6, 4)
+        #     .alias(field_name))
+        df = _format_phone_numbers(df, field_name)
+    elif data_type == "email":
+        ic(f"will convert {field_name} to email.")
+        regex_valid_email = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+        df = df.with_columns(
+            pl.when(pl.col(field_name).str.contains(regex_valid_email, literal=False))
+            .then(pl.col(field_name))
+            .otherwise("****" + pl.col(field_name) + "****")
+        )
+    else:
+        ic(f"{data_type} not supported.")
+    
+    return df
+
+def _format_phone_numbers(df, field_name):
+    # Assuming phone numbers are valid and have 10 digits
+    # Condition to check if the length is exactly 10 (for standard US numbers)
+    #rename source field to alias
+    old_field_name = f"{field_name}_old"
+    df = df.rename({field_name: old_field_name})
+    # Apply formatting if the condition is met
+    condition = pl.col(old_field_name).str.lengths() == 10
+    formatted = pl.when(condition).then(
+        "(" + pl.col(old_field_name).str.slice(0, 3) + 
+        ") " + pl.col(old_field_name).str.slice(3, 3) + 
+        "-" + pl.col(old_field_name).str.slice(6, 4)
+    ).otherwise(
+        "****" + pl.col(old_field_name) + "****" # Return unchanged if not exactly 10 digits
+    )
+    ic(field_name)
+    return df.with_columns(formatted.alias(field_name))
+    
+def get_excel_formats(output_config: dict) -> dict:
+    column_formats = {}
+    for field in output_config.get("fields"):
+        alias = field.get("alias")
+        source = field.get("source_name")
+        field_name = alias if alias else source
+        format = field.get("excel_format")
+        if format:
+            column_formats[field_name] = format
+    return column_formats
+
+def drop_duplicates(df: pl.DataFrame, config: dict) -> pl.DataFrame:
+    fields_list = config.get("fields_to_consider_duplicates")
+    if not fields_list:
+        ic(f"{fields_list} not found in the config. No fields to consider for duplicates.")
+        return df
+    ic(f"will drop duplicates based on {fields_list}")
+    df = df.unique(subset=fields_list)
+    return df
+
+def truncate_max_length(df: pl.DataFrame, field: dict) -> pl.DataFrame:
+    source = field.get("source_name")
+    alias = field.get("alias")
+    field_name = alias if alias else source
+    max_length = field.get("max_length")
+
+    if not max_length:
+        ic(f"{max_length} not found in the field.")
+        return df
+    ic(f"will truncate {field_name} to {max_length}")
+    #chceck data type of the field
+    if df[field_name].dtype == pl.datatypes.Utf8:
+        df = df.with_columns(pl.col(field_name).str.slice(0, max_length))
+    else:
+        ic(f"{field_name} is not of type Utf8.")
+        data_type = df[field_name].dtype
+        df = df.with_columns(pl.col(field_name).cast(pl.datatypes.Utf8).str.slice(0, max_length))
+        df = df.with_columns(pl.col(field_name).cast(data_type))
+    
+    return df
+
+def create_record_off_field(df: pl.DataFrame, field: dict) -> pl.DataFrame:
+    field_name = field.get("source_name")
+    expand_on = field.get("expand_on")
+
+    if not expand_on:
+        ic(f"{expand_on} not found in the field. nothing to expand on")
+        return df
+    ic(f"will create record off {field_name} on {expand_on}")
+    df_alt = df.clone()
+    #remove row if field is empty or null
+    df_alt = df_alt.filter(pl.col(field_name).is_not_null())
+    df_alt = df_alt.drop([expand_on])
+    df_alt = df_alt.with_columns(pl.col(field_name).alias(expand_on))
+    df = pl.concat([df, df_alt], how='align')
+
+    
     return df

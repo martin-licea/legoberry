@@ -33,6 +33,7 @@ def find_data_files(config: dict) -> list:
     files = list(Path().glob("*.xlsx"))
     files += list(Path().glob("*.csv"))
     files += list(Path().glob("*.dat"))
+    files += list(Path().glob("*.txt"))
     target_file = config.get("target_file", None)
     ic(target_file)
     if target_file:
@@ -65,19 +66,19 @@ def _read_data_file(file: Path, config: dict) -> pl.DataFrame:
         return pl.read_excel(file_name)
     elif file_suffix == ".csv":
         return pl.read_csv(file_name)
-    elif file_suffix == ".dat":
+    elif file_suffix in (".dat", ".txt"):
         ic(file_name)
         ic(delimiter)
         df = pl.read_csv(file_name, separator=delimiter, truncate_ragged_lines=True, ignore_errors=True)
         return df
 
-def create_output_file(create_output_file: dict, df: pl.DataFrame):
+def create_output_file(create_output_file: dict, df: pl.DataFrame, column_formats: dict = None):
     file = Path(create_output_file)
     suffix = file.suffix
     if suffix == ".csv":
         df.write_csv(create_output_file)
     elif suffix == ".xlsx":
-        df.write_excel(create_output_file, include_header=True)
+        df.write_excel(create_output_file, include_header=True, column_formats=column_formats)
     else:
         raise ValueError(f"Unsupported file format: {suffix}")
 
