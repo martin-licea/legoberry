@@ -4,6 +4,7 @@ import yaml
 import polars as pl
 
 def find_data_files(config: dict) -> list:
+    #find_source_file_type = config.get("find_source_file_type", None)
     source_files = config.get("source_files", [])
     pathed_files = []
     for file in source_files:
