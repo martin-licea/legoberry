@@ -282,17 +282,20 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     return df
 
 def _format_phone_numbers(df, field_name):
-    # Assuming phone numbers are valid and have 10 digits
-    # Condition to check if the length is exactly 10 (for standard US numbers)
-    #rename source field to alias
     old_field_name = f"{field_name}_old"
     df = df.rename({field_name: old_field_name})
     # Apply formatting if the condition is met
     condition = pl.col(old_field_name).str.lengths() == 10
+    #if phone number is 11 digits long and starts with 1, remove 1
+    eleven_digits = pl.col(old_field_name).str.lengths() == 11
     formatted = pl.when(condition).then(
         "(" + pl.col(old_field_name).str.slice(0, 3) + 
         ") " + pl.col(old_field_name).str.slice(3, 3) + 
         "-" + pl.col(old_field_name).str.slice(6, 4)
+    ).when(eleven_digits).then(
+        "(" + pl.col(old_field_name).str.slice(1, 3) + 
+        ") " + pl.col(old_field_name).str.slice(4, 3) + 
+        "-" + pl.col(old_field_name).str.slice(7, 4)
     ).otherwise(
         "%%%%" + pl.col(old_field_name) + "%%%%" # Return unchanged if not exactly 10 digits
     )

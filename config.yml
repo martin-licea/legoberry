@@ -164,7 +164,6 @@ output_file_configs:
     #excel_format: '00000'
     max_length: 5
   - source_name: 'Phone'
-    alias: 'Home Phone'
     data_type: phone number
   ordered_headers:
   - First
