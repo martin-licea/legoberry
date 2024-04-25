@@ -255,6 +255,7 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         ic(f"will convert {field_name} to zip code.")
         #ex) 12345-6789 or 12345 -> 12345
         #ex) 2345 -> 02345
+        df = df.with_columns(pl.col(field_name).cast(pl.Utf8))
         condition = pl.col(field_name).str.lengths() == 4
         warning_condition = pl.col(field_name).str.lengths() < 4
         formatted = pl.when(condition).then(
