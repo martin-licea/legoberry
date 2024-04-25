@@ -14,7 +14,7 @@ output_file_configs:
 - name: 'D2L'
   keep_source_file_name: true
   output_file_suffix: '_D2L'
-  output_file_extension: '.xlsx'
+  output_file_extension: '.csv'
   fields:
   - source_name: Title
     alias: 'Org Defined ID'
@@ -73,8 +73,8 @@ output_file_configs:
     in_list: states.yml
   - source_name: 'Zip'
     alias: 'Zip/Postal Code'
-    data_type: integer
-    excel_format: '00000'
+    data_type: zip code
+    #excel_format: '00000'
     max_length: 5
   - source_name: 'Country'
     default_value: ''
@@ -91,6 +91,7 @@ output_file_configs:
     alias: Gender
   - alias: 'Username'
     default_value: "{First Name}.{Last Name}"
+    source_fields_alpha_only: true #this makes it so that the {} values can only be letters 
   ordered_headers:
     - UPDATE
     - Username
@@ -115,7 +116,7 @@ output_file_configs:
 - name: Campus Cafe
   keep_source_file_name: true
   output_file_suffix: '_CC'
-  output_file_extension: '.csv'
+  output_file_extension: '.xlsx'
   fields:
   - source_name: 'First'
     casing: 'proper'
@@ -156,12 +157,11 @@ output_file_configs:
       to: ' Cir.$1'
       is_expression: true
   - source_name: 'State'
-    alias: 'State/Province'
     casing: 'upper'
     in_list: states.yml
   - source_name: 'Zip'
-    data_type: integer
-    excel_format: '00000'
+    data_type: zip code
+    #excel_format: '00000'
     max_length: 5
   - source_name: 'Phone'
     alias: 'Home Phone'
@@ -175,7 +175,7 @@ output_file_configs:
   - Zip
   - Phone
   - Email
-- Name: Constant Contact
+- name: Constant Contact
   keep_source_file_name: true
   output_file_suffix: '_ConstantContact'
   output_file_extension: '.xlsx'
@@ -183,7 +183,7 @@ output_file_configs:
   - source_name: 'First'
     casing: 'proper'
   - source_name: 'Last'
-    casing: 'proper'
+    casing: 'name'
   - source_name: 'State'
     alias: tags
     casing: 'upper'
@@ -193,6 +193,8 @@ output_file_configs:
   - source_name: 'Alternate E-Mail Address'
     data_type: email
     expand_on: 'Email'
+    drop_full_row_if_empty: true
+    drop_if_length_less_than: 5
   - source_name: Grade Level
     alias: 'grade level'
     casing: 'lower'
@@ -211,6 +213,12 @@ output_file_configs:
       to: 'grade 4'
     - from: 'Grade Five'
       to: 'grade 5'
+    - from: 'Elementary Resource'
+      to: 'resource'
+    - from: 'Elementary Library/Tech/Media'
+      to: 'media'
+    - from: 'Grade Six in an Elementary School'
+      to: 'grade 6'
     - from: 'Grade Six'
       to: 'grade 6'
     - from: 'Math Educator'
@@ -229,9 +237,9 @@ output_file_configs:
       to: 'hs'
   - alias: 'company'
     default_value: 'customer'
-  - alias: 'Extra Field 1'
+  - alias: 'lead'
     default_value: 'customer'
-  - source_name: 'job title'
+  - alias: 'job title'
     default_value: '2024'
   ordered_headers:
     - First
@@ -240,7 +248,7 @@ output_file_configs:
     - Email
     - grade level
     - company
-    - Extra Field 1
+    - lead
     - job title
   fields_to_consider_duplicates:
     - First

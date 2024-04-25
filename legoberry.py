@@ -2,13 +2,8 @@ import polars as pl
 from icecream import ic
 from utils import find_data_files, get_config, create_output_file, get_output_file_name, read_data_files
 import transformations as tf
-
-
-import logging
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.FileHandler('output.log'))
-
+import os
+import sys
 def main():
     config = get_config()
     source_df= read_data_files(config)
@@ -19,6 +14,8 @@ def main():
     for output in output_file_configs:
         df = source_df.clone()
         for field in output.get('fields'):
+            df = tf.drop_nulls(df, field)
+            df = tf.drop_if_length_less_than(df, field)
             df = tf.rename_columns(df, field)
             df = tf.create_new_fields(df, field)
             df = tf.replace_strings(df, field)
@@ -35,4 +32,11 @@ def main():
 
 
 if __name__ == "__main__":
+    if getattr(sys, 'frozen', False):
+        application_path = os.path.dirname(sys.executable)
+    else:
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(application_path)
+    cwd = os.getcwd()
+
     main()
