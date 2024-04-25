@@ -132,7 +132,12 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         #capitalize letter after ' and -
         df = df.with_columns(pl.col(field_name).apply(lambda value: re.sub(r"('|\-)(\w)", _name_replacement, value)))
         #if the field starts with a single letter followed by a space, and the length of the field is more than 2, remove the first letter and the space
-        df = df.with_columns(pl.col(field_name).str.replace_all(r"(^\w\s)", "$2"))
+        df = df.with_columns(pl.when(pl.col(field_name).str.lengths() > 2).then(
+            pl.col(field_name).str.replace_all(r"(^\w\s)", "$2")
+        ).otherwise(
+            pl.col(field_name)
+        ))
+    else:    
         ic(f"{casing} not supported.")
     
     return df

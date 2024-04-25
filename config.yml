@@ -1,9 +1,6 @@
 log: 'log.txt'
-source_files: 
-  - name: '3-28-25 233962-234231.dat'
-    delimiter: tab
-  - name: '3-28-24 233962-234231.dat'
-    delimiter: tab
+input_file_extension: '.dat'
+delimiter: tab
 fields_in_field:
   - field_name: "Custom Fields"
     delimiter: "|"

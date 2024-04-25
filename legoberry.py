@@ -6,7 +6,10 @@ import os
 import sys
 def main():
     config = get_config()
-    source_df= read_data_files(config)
+    source_df, source_files= read_data_files(config)
+    ic(source_files)
+    temp_target_file = sorted([x.get('name').name for x in source_files], reverse=True)[0]
+    ic(temp_target_file)
     source_df = tf.fix_nested_fields(config, source_df)
     output_file_configs = config.get("output_file_configs", [])
     if not output_file_configs:
@@ -26,7 +29,7 @@ def main():
             df = tf.create_record_off_field(df, field)
         df = tf.select_columns(df, output)
         df = tf.drop_duplicates(df, output)
-        output_file_name = get_output_file_name(config, output,)
+        output_file_name = get_output_file_name(config, output, temp_target_file)
         column_formats = tf.get_excel_formats(output)
         create_output_file(output_file_name, df, column_formats)
 

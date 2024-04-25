@@ -5,42 +5,38 @@ import polars as pl
 
 def find_data_files(config: dict) -> list:
     #find_source_file_type = config.get("find_source_file_type", None)
+    input_file_extension = config.get("input_file_extension", None)
+    input_delimiter = config.get("delimiter", None)
     source_files = config.get("source_files", [])
     pathed_files = []
-    for file in source_files:
-        if not Path(file.get("name")).exists():
-            raise FileNotFoundError(f"{file.get('name')} not found.")
-        else:
-            pathed_file = Path(file.get("name"))
-            delimiter = file.get("delimiter", None)
-            file_object = {
-                "name": pathed_file
-            }
-            if delimiter:
-                file_object["delimiter"] = delimiter
-            pathed_files.append(file_object)
+    if source_files:
+        for file in source_files:
+            if not Path(file.get("name")).exists():
+                raise FileNotFoundError(f"{file.get('name')} not found.")
+            else:
+                pathed_file = Path(file.get("name"))
+                delimiter = file.get("delimiter", None)
+                file_object = {
+                    "name": pathed_file
+                }
+                if delimiter:
+                    file_object["delimiter"] = delimiter
+                pathed_files.append(file_object)
     
     if pathed_files:
         return pathed_files
-    
-        
-    if source_files:
-        for file in source_files:
-            filename = file.get("name")
-            if not Path(filename).exists():
-                raise FileNotFoundError(f"{filename} not found.")
-        return source_files
 
-    files = list(Path().glob("*.xlsx"))
-    files += list(Path().glob("*.csv"))
-    files += list(Path().glob("*.dat"))
-    files += list(Path().glob("*.txt"))
-    target_file = config.get("target_file", None)
-    ic(target_file)
-    if target_file:
-        files_without_target = [file for file in files if file.name != target_file]
-        return files_without_target
-    
+
+    files = list(Path().glob(f"*{input_file_extension}"))
+    target_file_suffix = [x.get('output_file_suffix') + x.get('output_file_extension') for x in config.get("output_file_configs", [])]
+    ic(target_file_suffix)
+    #remove file from files if ends with any one of target_file_suffix list
+    files_without_target = [path for path in files if not path.name.endswith(tuple(target_file_suffix))]
+
+    ic(files_without_target)
+    pathed_files = [ {"name": file, "delimiter": input_delimiter} for file in files_without_target]
+    if pathed_files:
+        return pathed_files
     raise ValueError("No source files found in the config file.")
 
 def get_config() -> dict:
@@ -84,12 +80,13 @@ def create_output_file(create_output_file: dict, df: pl.DataFrame, column_format
         raise ValueError(f"Unsupported file format: {suffix}")
 
 
-def get_output_file_name(config: dict, output: dict) -> str:
+def get_output_file_name(config: dict, output: dict, newest_file: str = None) -> str:
     if output.get("keep_source_file_name"):
-        source_files = config.get("source_files")
-        file_names = [file.get("name") for file in source_files]
-        sorted_file_names = sorted(file_names, reverse=True)
-        newest_file = sorted_file_names[0]
+        if not newest_file:
+            source_files = config.get("source_files")
+            file_names = [file.get("name") for file in source_files]
+            sorted_file_names = sorted(file_names, reverse=True)
+            newest_file = sorted_file_names[0]
         root_file_name = Path(newest_file).stem
         if output.get("output_file_suffix"):
             root_file_name += output.get("output_file_suffix")
@@ -115,4 +112,4 @@ def read_data_files(config: dict) -> pl.DataFrame:
             ic(df_new)
             df = pl.concat([df_new, df], how='vertical')
     ic(df)
-    return df
+    return df, source_files
