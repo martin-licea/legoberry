@@ -129,9 +129,8 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         df = df.with_columns(pl.col(field_name).str.to_titlecase())
         #find Mc or Mac and capitalize the next letter
         df = df.with_columns(pl.col(field_name).apply(lambda value: re.sub(r"(Mc|Mac)(\w)", _name_replacement, value)))
-        # df = df.with_columns(
-        #     pl.col(field_name).str.replace_all(
-        #         r"(Mc|Mac)(\w)", "$1" + "$2".capitalize(), literal=False))
+        #capitalize letter after ' and -
+        df = df.with_columns(pl.col(field_name).apply(lambda value: re.sub(r"('|\-)(\w)", _name_replacement, value)))
     else:
         ic(f"{casing} not supported.")
     
