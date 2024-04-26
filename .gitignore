@@ -1,0 +1,6 @@
+*.csv
+mas
+dist/
+.venv/
+__pycache__/
+build/
