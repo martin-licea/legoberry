@@ -113,3 +113,21 @@ def read_data_files(config: dict) -> pl.DataFrame:
             df = pl.concat([df_new, df], how='vertical')
     ic(df)
     return df, source_files
+
+def get_dropped_fields_file(file_suffix):
+    file_name = Path(f"dropped_fields{file_suffix}.csv")
+    if not file_name.exists():
+        ic(f"will create {file_name}")
+        file_name.touch()
+        action = "created"
+    else:
+        action = None
+    return file_name, action
+
+def clean_up_drop_fields(df, output_file_suffix):
+    drop_file, action = get_dropped_fields_file(output_file_suffix)
+    if action == "created":
+        #write out only if field drop_indicator is set to true
+        df.filter(pl.col("legoberry_drop_field_indicator") == True).write_csv(drop_file)
+    return df.filter(pl.col("legoberry_drop_field_indicator") == False)
+    

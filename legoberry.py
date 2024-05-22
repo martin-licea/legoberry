@@ -27,11 +27,20 @@ def main():
             df = tf.truncate_max_length(df, field)
             df = tf.format_fields(df, field)
             df = tf.create_record_off_field(df, field)
+            #df = tf.drop_if_length_less_than(df, field)
         df = tf.select_columns(df, output)
         df = tf.drop_duplicates(df, output)
         output_file_name = get_output_file_name(config, output, temp_target_file)
         column_formats = tf.get_excel_formats(output)
+        df_drop = df.filter(pl.col("legoberry_drop_field_indicator") == True)
+        ic(df_drop)
+        df = df.filter(pl.col("legoberry_drop_field_indicator") == False)
+        #create df where drop_indicator is false
+        select_columns = [x for x in df.columns if x.startswith("legoberry") == False]
+        df = df.select(select_columns)
         create_output_file(output_file_name, df, column_formats)
+        if df_drop.shape[0] > 0:
+            df_drop.write_csv(f"dropped_fields{output.get('output_file_suffix')}.csv")
 
 
 if __name__ == "__main__":

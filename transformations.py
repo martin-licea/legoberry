@@ -2,7 +2,7 @@ import polars as pl
 from icecream import ic
 import yaml
 import re
-
+from utils import clean_up_drop_fields
 ic.configureOutput(contextAbsPath=True)
 
 def do_explore(conifg, df):
@@ -22,18 +22,18 @@ def explode_custom_fields(df: pl.DataFrame, on_field: str, delimiter: str, split
     df = df.with_columns(pl.arange(0, df.height).cast(pl.datatypes.Utf8).alias("row_number"))
     if on_field in df.columns:
         # Split the "Custom Fields" column by '|'
-        custom_fields = df[on_field].apply(lambda x: x.split(delimiter) if isinstance(x, str) else x, return_dtype=pl.datatypes.List)
+        custom_fields = df[on_field].map_elements(lambda x: x.split(delimiter) if isinstance(x, str) else x, return_dtype=pl.datatypes.List)
         #remove field if field is 'n'
         for ignore in ignore_junk_fields:
-            custom_fields = custom_fields.apply(lambda x: [field for field in x if field != ignore], return_dtype=pl.datatypes.List)
+            custom_fields = custom_fields.map_elements(lambda x: [field for field in x if field != ignore], return_dtype=pl.datatypes.List)
         ic(custom_fields)
         # For each split column
         row_number = 0
         for field in custom_fields:
             # Split the column by ':'
-            split_column = field.apply(lambda x: x.split(splitter), return_dtype=pl.datatypes.List)
-            field_name = split_column.apply(lambda x: x[0].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
-            field_value = split_column.apply(lambda x: x[1].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
+            split_column = field.map_elements(lambda x: x.split(splitter), return_dtype=pl.datatypes.List)
+            field_name = split_column.map_elements(lambda x: x[0].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
+            field_value = split_column.map_elements(lambda x: x[1].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
             field_name = field_name.append(pl.Series(["row_number"]))
             field_value = field_value.append(pl.Series([str(row_number)]))
             if "df_exploded_fields" not in locals():
@@ -164,7 +164,8 @@ def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 
 def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     select_fields = field.get("ordered_headers")
-
+    select_fields.extend(["legoberry_drop_field_indicator", "legoberry_reason_for_drop"])
+    ic(select_fields)
     if not select_fields:
         ic(f"{select_fields} not found. Will pass all fields")
         return df
@@ -277,7 +278,7 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         ic(f"will convert {field_name} to email.")
         regex_valid_email = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
         df = df.with_columns(
-            pl.when(pl.col(field_name).str.contains(regex_valid_email, literal=False))
+            pl.when(pl.col(field_name).str.contains(regex_valid_email, literal=False) & pl.col(field_name).is_not_null())
             .then(pl.col(field_name))
             .otherwise("%%%%" + pl.col(field_name) + "%%%%")
         )
@@ -374,9 +375,22 @@ def drop_nulls(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     alias = field.get("alias")
     field_name = alias if alias else source
     ic(f"will drop nulls from {field_name}")
+    #set legoberry_drop_field_indicator to true if field is null
+    df = df.with_columns(pl.when(pl.col(field_name).is_null()).then(
+        True
+    ).alias("legoberry_drop_field_indicator"))
+    if "legoberry_reason_for_drop" in df.columns:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True & pl.col("legoberry_reason_for_drop").is_not_null() & pl.col("legoberry_reason_for_drop") != "").then(
+            pl.lit(f"{field_name} is Null")
+        ).alias("legoberry_reason_for_drop"))
+    else:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True).then(
+            pl.lit(f"{field_name} is Null")
+        ).alias("legoberry_reason_for_drop"))
 
-    df = df.filter(pl.col(field_name).is_not_null())
-    df = df.filter(pl.col(field_name).str.contains("%%%%%%%%", literal=True).is_not())
+
+    #df = df.filter(pl.col(field_name).is_not_null())
+    #df = df.filter(pl.col(field_name).str.contains("%%%%%%%%", literal=True).is_not())
     return df
 
 def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
@@ -387,7 +401,14 @@ def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     source = field.get("source_name")
     alias = field.get("alias")
     field_name = alias if alias else source
-    
     ic(f"will drop if length of {field_name} is less than {drop_if_length_less_than}")
-    df = df.filter(pl.col(field_name).str.lengths() >= drop_if_length_less_than)
+    df = df.with_columns(pl.when(pl.col(field_name).str.lengths() < drop_if_length_less_than).then(
+        True
+    ).alias("legoberry_drop_field_indicator"))
+    ic("TESTING")
+    ic(df.filter(pl.col("legoberry_drop_field_indicator") == True))
+    df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True & pl.col("legoberry_reason_for_drop").is_null()).then(
+        pl.lit(f"Length of {field_name} is less than {drop_if_length_less_than}")
+    ).alias("legoberry_reason_for_drop"))
+
     return df
