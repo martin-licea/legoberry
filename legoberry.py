@@ -67,9 +67,9 @@ if __name__ == "__main__":
 
     try:
         main()
-    except exception as e:
-        logger.info('something failed. check the source file.')
+    except Exception as e:
         logger.error(e)
+        logger.info('Something is likely wrong in the source file. Check the log a few lines above this to see if there is an indication of the issue.')
         finalizer()
     finally:
         finalizer()
