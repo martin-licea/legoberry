@@ -62,3 +62,7 @@ if __name__ == "__main__":
     cwd = os.getcwd()
 
     main()
+    while True:
+        will_exit= input("Press any key to exit:")
+        if will_exit:
+            sys.exit(0)
