@@ -75,7 +75,7 @@ def rename_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     if not alias or not source:
         return df
     if source not in df.columns:
-        logger.info(f"{source} not found in the DataFrame.")
+        logger.debug(f"{source} not found in the DataFrame. Will not rename")
         return df
     
     #rename source field to alias
@@ -90,11 +90,11 @@ def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     replace = field.get("replace")
 
     if (not source and not alias) or not replace:
-        logger.info(field)
-        logger.info("source or replace not found in the field.")
+        logger.debug(field)
+        logger.debug("source or replace not found in the field.")
         return df
     if alias and alias not in df.columns:
-        logger.info(f"{alias} not found in the DataFrame.")
+        logger.debug(f"{alias} not found in the DataFrame.")
         return df
     
     if not alias and source not in df.columns:
@@ -161,7 +161,7 @@ def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     field_name = alias if alias else source
 
     if not in_list:
-        logger.info(f"in_list not found in the {field_name}. will skip validation.")
+        logger.debug(f"in_list not found in the {field_name}. will skip validation.")
         return df
     with open(in_list) as f:
         list_yaml = yaml.safe_load(f)
@@ -196,10 +196,10 @@ def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         logger.info(f"alias not found for {field_name}. Will skip creating new field.")
         return df
     if alias in df.columns:
-        logger.info(f"{alias} already exists in the DataFrame.")
+        logger.info(f"{alias} already exists in the DataFrame. Will not alias a new created field")
         return df
     if not default_value:
-        logger.info(f"{default_value} not found in the field.")
+        logger.debug(f"{default_value} not found in the field.")
         return df
 
     logger.info(f"will create {alias} with default value {default_value}")
@@ -235,12 +235,16 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if not data_format:
             logger.info(f'date not found in the "{field_name}" field. Will skip formatting to date.')
             return df
-        logger.info(f"Will not format {field_name} to date.")
+        logger.debug(f"Will not format {field_name} to date.")
         #if date conversion fails, add *** to the field and keep it as string
         df = df.with_columns(pl.col(field_name).str.to_date(data_format))
         if reformat_to:
-            logger.info(f"will reformat {field_name} to {reformat_to}")
-            df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
+            try:
+                logger.info(f"will reformat {field_name} to {reformat_to}")
+                df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
+            except exception as e:
+                logger.error(e)
+                raise ValueError(f'Check source value for {field_name}')
         else:
             logger.info(f'"reformat_to" not found in the field.')
     elif data_type == "integer":
@@ -353,7 +357,7 @@ def truncate_max_length(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     max_length = field.get("max_length")
 
     if not max_length:
-        logger.info(f"will not truncate {field_name}.")
+        logger.debug(f"Will not format truncate {field_name}.")
         return df
     logger.info(f"will truncate {field_name} to {max_length}")
     #chceck data type of the field
@@ -372,7 +376,7 @@ def create_record_off_field(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     expand_on = field.get("expand_on")
 
     if not expand_on:
-        logger.info(f"will not expand on {field_name or field.get('alias')}.")
+        logger.debug(f"Will not format expand on {field_name or field.get('alias')}.")
         return df
     logger.info(f"will create record off {field_name} on {expand_on}")
     df_alt = df.clone()
@@ -387,7 +391,7 @@ def create_record_off_field(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 def drop_nulls(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     drop_full_row_if_empty = field.get("drop_full_row_if_empty")
     if not drop_full_row_if_empty:
-        logger.info(f"will not drop full row if {field.get('source_name') or field.get('alias')} is null.")
+        logger.debug(f"Will not format drop full row if {field.get('source_name') or field.get('alias')} is null.")
         return df
     source = field.get("source_name")
     alias = field.get("expand_on") or field.get("alias")
@@ -425,7 +429,7 @@ def drop_nulls(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     drop_if_length_less_than=field.get("drop_if_length_less_than")
     if not drop_if_length_less_than:
-        logger.info(f"will not check for length of {field.get('source_name')}.")
+        logger.debug(f"Will not format check for length of {field.get('source_name')}.")
         return df
     source = field.get("source_name")
     alias = field.get("alias")

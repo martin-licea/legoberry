@@ -51,7 +51,11 @@ def main():
             os.remove(dropped_fields_file)
         if df_drop.shape[0] > 0:
             df_drop.write_csv(dropped_fields_file)
-
+def finalizer():
+    while True:
+            will_exit= input("Press e to exit:")
+            if will_exit.lower() == 'e':
+                sys.exit(0)
 
 if __name__ == "__main__":
     if getattr(sys, 'frozen', False):
@@ -61,8 +65,11 @@ if __name__ == "__main__":
     os.chdir(application_path)
     cwd = os.getcwd()
 
-    main()
-    while True:
-        will_exit= input("Press any key to exit:")
-        if will_exit:
-            sys.exit(0)
+    try:
+        main()
+    except exception as e:
+        logger.info('something failed. check the source file.')
+        logger.error(e)
+        finalizer()
+    finally:
+        finalizer()
