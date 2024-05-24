@@ -38,15 +38,19 @@ def main():
         output_file_name = get_output_file_name(config, output, temp_target_file)
         column_formats = tf.get_excel_formats(output)
         df_drop = df.filter(pl.col("legoberry_drop_field_indicator") == True)
-        logger.info(df_drop)
+        #logger.info(df_drop)
         df = df.filter((pl.col("legoberry_drop_field_indicator") == False) | pl.col("legoberry_drop_field_indicator").is_null())
-        logger.info(df)
+        #logger.info(df)
         #create df where drop_indicator is false
         select_columns = [x for x in df.columns if x.startswith("legoberry") == False]
         df = df.select(select_columns)
         create_output_file(output_file_name, df, column_formats)
+        #delete dropped fields file if exists
+        dropped_fields_file = f"dropped_fields{output.get('output_file_suffix')}.csv"
+        if os.path.exists(dropped_fields_file):
+            os.remove(dropped_fields_file)
         if df_drop.shape[0] > 0:
-            df_drop.write_csv(f"dropped_fields{output.get('output_file_suffix')}.csv")
+            df_drop.write_csv(dropped_fields_file)
 
 
 if __name__ == "__main__":

@@ -248,7 +248,7 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         #try to convert to integer, if fails, add *** to the field and keep it as string
         df = df.with_columns(
             pl.when(pl.col(field_name).str.contains(r'[a-zA-Z]'))
-            .then(pl.lit("0000"))
+            .then(pl.lit(None))
             .otherwise(pl.col(field_name))
             .alias(field_name)
         )
