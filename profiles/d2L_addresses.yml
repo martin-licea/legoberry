@@ -1,0 +1,111 @@
+log: 'log.txt'
+input_file_extension: '.txt'
+delimiter: tab
+fields_in_field:
+  - field_name: "Custom Fields"
+    delimiter: "|"
+    key_value_splitter: ":"
+    ignore_junk_fields: 
+    - "n"
+name: 'D2L'
+keep_source_file_name: true
+output_file_suffix: '_D2L'
+output_file_extension: '.xlsx'
+fields:
+- source_name: Title
+  alias: 'Org Defined ID'
+  data_type: integer
+  excel_format: '0000'
+- alias: 'UPDATE'
+  default_value: 'UPDATE'
+- source_name: 'First'
+  casing: 'name'
+  alias: 'First Name'
+- source_name: 'City'
+  casing: 'proper'
+- source_name: 'Last'
+  casing: 'name'
+  alias: 'Last Name'
+- alias: 'Is Active'
+  default_value: '1'
+- source_name: 'Address'
+  alias: 'Address 1'
+  casing: 'proper'
+  replace:
+  - from: ','
+    to: ''
+  - from: "[Dd]r($| )"
+    to: 'Dr.$1'
+    is_expression: true
+  - from: '[aA]ve($| )'
+    to: ' Ave.$1'
+    is_expression: true
+  - from: '[sS]t($| )'
+    to: ' St.$1'
+    is_expression: true
+  - from: '[rR]d($| )'
+    to: ' Rd.$1'
+    is_expression: true
+  - from: '[lL]n($| )'
+    to: ' Ln.$1'
+    is_expression: true
+  - from: '[cC]t($| )'
+    to: ' Ct.$1'
+    is_expression: true
+  - from: '[bB]lvd($| )'
+    to: ' Blvd.$1'
+    is_expression: true
+  - from: '[pP]kwy($| )'
+    to: ' Pkwy.$1'
+    is_expression: true
+  - from: '[cC]ir($| )'
+    to: ' Cir.$1'
+    is_expression: true
+- source_name: '\‘Address 2'
+  alias: 'Address 2'
+- source_name: 'State'
+  alias: 'State/Province'
+  casing: 'upper'
+  in_list: states.yml
+- source_name: 'Zip'
+  alias: 'Zip/Postal Code'
+  data_type: zip code
+  #excel_format: '00000'
+  max_length: 5
+- source_name: 'Country'
+  default_value: ''
+- source_name: 'Phone'
+  alias: 'Home Phone'
+  data_type: phone number
+- source_name: 'Date of Birth (Required by UCSD)'
+  alias: 'DOB'
+  data_type: date
+  data_format: '%m/%d/%Y' #this is the format of the date in the source file
+  reformat_to: '%Y-%m-%d' #only matters is writing CSV type. 
+  excel_format: 'YYYY-mm-dd' #this is the format of the date in the output file if it is an excel file
+- source_name: 'Gender (Required by UCSD)'
+  alias: Gender
+- alias: 'Username'
+  default_value: "{First Name}.{Last Name}"
+  source_fields_alpha_only: true #this makes it so that the {} values can only be letters 
+ordered_headers:
+  - UPDATE
+  - Username
+  - Org Defined ID
+  - First Name
+  - Middle Name
+  - Last Name
+  - Password
+  - Is Active
+  - Address 1
+  - Address 2
+  - City
+  - State/Province
+  - Zip/Postal Code
+  - Country
+  - Home Phone
+  - DOB
+  - Gender
+fields_to_consider_duplicates:
+  - First Name
+  - Last Name

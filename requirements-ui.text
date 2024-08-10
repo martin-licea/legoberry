@@ -1,0 +1,2 @@
+-r requirements.text
+streamlit==1.36.0
