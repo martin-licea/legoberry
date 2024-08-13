@@ -2,19 +2,29 @@ import polars as pl
 from icecream import ic
 import yaml
 import re
+from utils import clean_up_drop_fields, create_output_file
+import logging 
+from pathlib import Path
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
+logger = logging.getLogger(__name__)
 
 ic.configureOutput(contextAbsPath=True)
 
 def do_explore(conifg, df):
     pass
 
-def fix_nested_fields(config: dict, df: pl.DataFrame) -> pl.DataFrame:
-    for explode in config.get("fields_in_field", []):
+def fix_nested_fields(config: dict, df: pl.DataFrame, target_file) -> pl.DataFrame:
+    target_file = Path(target_file)
+    csv_file_name = target_file.stem + ".csv"
+    fields_in_field = config.get("fields_in_field", [])
+    for explode in fields_in_field:
             delimiter = explode.get("delimiter", "|")
             splitter = explode.get("key_value_splitter", ":")
             field_name = explode.get("field_name", "Custom Fields")
             ignore_junk_field_string = explode.get("ignore_junk_field_string", ["n"])
             df = explode_custom_fields(df, field_name, delimiter, splitter, ignore_junk_field_string)
+    if len(fields_in_field) > 0:
+        create_output_file(csv_file_name, df)
     return df
 
 
@@ -22,18 +32,18 @@ def explode_custom_fields(df: pl.DataFrame, on_field: str, delimiter: str, split
     df = df.with_columns(pl.arange(0, df.height).cast(pl.datatypes.Utf8).alias("row_number"))
     if on_field in df.columns:
         # Split the "Custom Fields" column by '|'
-        custom_fields = df[on_field].apply(lambda x: x.split(delimiter) if isinstance(x, str) else x, return_dtype=pl.datatypes.List)
+        custom_fields = df[on_field].map_elements(lambda x: x.split(delimiter) if isinstance(x, str) else x, return_dtype=pl.datatypes.List)
         #remove field if field is 'n'
         for ignore in ignore_junk_fields:
-            custom_fields = custom_fields.apply(lambda x: [field for field in x if field != ignore], return_dtype=pl.datatypes.List)
-        ic(custom_fields)
+            custom_fields = custom_fields.map_elements(lambda x: [field for field in x if field != ignore], return_dtype=pl.datatypes.List)
+        logger.info(custom_fields)
         # For each split column
         row_number = 0
         for field in custom_fields:
             # Split the column by ':'
-            split_column = field.apply(lambda x: x.split(splitter), return_dtype=pl.datatypes.List)
-            field_name = split_column.apply(lambda x: x[0].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
-            field_value = split_column.apply(lambda x: x[1].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
+            split_column = field.map_elements(lambda x: x.split(splitter), return_dtype=pl.datatypes.List)
+            field_name = split_column.map_elements(lambda x: x[0].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
+            field_value = split_column.map_elements(lambda x: x[1].strip() if len(x) > 1 else "", return_dtype=pl.datatypes.Utf8)
             field_name = field_name.append(pl.Series(["row_number"]))
             field_value = field_value.append(pl.Series([str(row_number)]))
             if "df_exploded_fields" not in locals():
@@ -51,7 +61,7 @@ def explode_custom_fields(df: pl.DataFrame, on_field: str, delimiter: str, split
         # write_path = "output.csv"
         # df.write_csv(write_path)
         #show the last 5 rows
-        ic("printing with row_number")
+        logger.info("printing with row_number")
         
     else: 
         raise ValueError(f"{field_name} not found in the DataFrame.")
@@ -65,11 +75,11 @@ def rename_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     if not alias or not source:
         return df
     if source not in df.columns:
-        ic(f"{source} not found in the DataFrame.")
+        logger.debug(f"{source} not found in the DataFrame. Will not rename")
         return df
     
     #rename source field to alias
-    ic(f"will rename {source} to {alias}")
+    logger.info(f"will rename {source} to {alias}")
     df = df.rename({source: alias})
     
     return df
@@ -80,15 +90,15 @@ def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     replace = field.get("replace")
 
     if (not source and not alias) or not replace:
-        ic(field)
-        ic("source or replace not found in the field.")
+        logger.debug(field)
+        logger.debug("source or replace not found in the field.")
         return df
     if alias and alias not in df.columns:
-        ic(f"{alias} not found in the DataFrame.")
+        logger.debug(f"{alias} not found in the DataFrame.")
         return df
     
     if not alias and source not in df.columns:
-        ic(f"{source} not found in the DataFrame.")
+        logger.info(f"{source} not found in the DataFrame.")
         return df
     if alias:
         field_name = alias
@@ -99,10 +109,9 @@ def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         from_string=item.get("from")
         to_string=item.get("to")
         is_expression = item.get("is_expression")
-        ic(is_expression)
         is_literal = False if is_expression == True else True #flip it for ease of use in the config
-        ic(is_literal)
-        ic(rf"will replace {from_string} with {to_string} in {field_name}")
+        logger.info(f"setting is_literal to {is_literal} for {from_string} to {to_string} in {field_name}")
+        logger.info(rf"will replace {from_string} with {to_string} in {field_name}")
         df = df.with_columns(pl.col(field_name).str.replace_all(from_string, to_string, literal=is_literal))
         #df = df.with_columns(pl.col(field_name).str.replace_all("[Dd]r($| )", "Dr.$1", literal=False))
         
@@ -114,11 +123,11 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     alias = field.get("alias")
     field_name = alias if alias else source
     if not casing:
-        ic(f"{casing} not required for {field_name}.")
+        logger.debug(f"casing not required for {field_name}.")
         return df
     
     if casing == "upper":
-        ic(f"will convert {field_name} to uppercase.")
+        logger.info(f"will convert {field_name} to uppercase.")
         df = df.with_columns(pl.col(field_name).str.to_uppercase())
     elif casing == "lower":
         df = df.with_columns(pl.col(field_name).str.to_lowercase())
@@ -138,7 +147,7 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
             pl.col(field_name)
         ))
     else:    
-        ic(f"{casing} not supported.")
+        logger.info(f"{casing} not supported.")
     
     return df
 def _name_replacement(match):
@@ -152,23 +161,24 @@ def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     field_name = alias if alias else source
 
     if not in_list:
-        ic(f"{field_name} not found in the field.")
+        logger.debug(f"in_list not found in the {field_name}. will skip validation.")
         return df
     with open(in_list) as f:
         list_yaml = yaml.safe_load(f)
 
-    ic(f"will validate {field_name} against {in_list}")
+    logger.info(f"will validate {field_name} against {in_list}")
     df = df.with_columns(pl.col(field_name).apply(lambda x: f'%%%%{x}%%%%' if x not in list_yaml else x))
     
     return df
 
 def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     select_fields = field.get("ordered_headers")
-
+    select_fields.extend(["legoberry_drop_field_indicator", "legoberry_reason_for_drop"])
+    logger.info(select_fields)
     if not select_fields:
-        ic(f"{select_fields} not found. Will pass all fields")
+        logger.info(f"{select_fields} not found. Will pass all fields")
         return df
-    ic(f"will select {select_fields} from the DataFrame.")
+    logger.info(f"will select {select_fields} from the DataFrame.")
     #create field if not found
     for field in select_fields:
         if field not in df.columns:
@@ -179,19 +189,20 @@ def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 
 def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     alias = field.get("alias")
+    field_name = alias if alias else field.get("source_name")
     default_value = field.get("default_value")
     source_fields_alpha_only = field.get("source_fields_alpha_only")
     if not alias:
-        ic(f"{alias} not found in the field.")
+        logger.info(f"alias not found for {field_name}. Will skip creating new field.")
         return df
     if alias in df.columns:
-        ic(f"{alias} already exists in the DataFrame.")
+        logger.info(f"{alias} already exists in the DataFrame. Will not alias a new created field")
         return df
     if not default_value:
-        ic(f"{default_value} not found in the field.")
+        logger.debug(f"{default_value} not found in the field.")
         return df
 
-    ic(f"will create {alias} with default value {default_value}")
+    logger.info(f"will create {alias} with default value {default_value}")
     if  "{" in default_value and "}" in default_value: 
         split_values = re.split(r'[{}]', default_value)
         if source_fields_alpha_only:
@@ -201,7 +212,7 @@ def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         else:
             split_values = [f"pl.col('{value.strip()}')" if i % 2 == 1 else f"'{value}'" for i, value in enumerate(split_values) if value.strip()]        # Join the list back into a string
         default_value = "+".join(split_values)
-        ic(default_value)
+        logger.info(default_value)
         df = df.with_columns(eval(default_value).alias(alias))
         return df
     df = df.with_columns(pl.Series([default_value]).alias(alias))
@@ -215,38 +226,50 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     data_format = field.get("data_format")
     reformat_to = field.get("reformat_to")
     if not data_type:
-        ic(f"{data_type} not found in the field.")
+        logger.info(f'data_type not found in the "{field_name}" field. Will skip formatting.')
         return df
-    
+    failed_records = pl.DataFrame()
     data_type = data_type.lower()
 
     if data_type == "date":
         if not data_format:
-            ic(f"{data_format} not found in the field.")
+            logger.info(f'date not found in the "{field_name}" field. Will skip formatting to date.')
             return df
-        ic(f"will format {field_name} as date with format {data_format}")
+        logger.debug(f"Will not format {field_name} to date.")
         #if date conversion fails, add *** to the field and keep it as string
         df = df.with_columns(pl.col(field_name).str.to_date(data_format))
-        #df = df.with_columns(pl.col(field_name).apply(lambda x: x if not x else f'***{x}'))
         if reformat_to:
-            ic(f"will reformat {field_name} to {reformat_to}")
-            df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
+            try:
+                logger.info(f"will reformat {field_name} to {reformat_to}")
+                df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
+            except exception as e:
+                logger.error(e)
+                raise ValueError(f'Check source value for {field_name}')
         else:
-            ic(f"reformat_to not found in the field.")
+            logger.info(f'"reformat_to" not found in the field.')
     elif data_type == "integer":
-        ic(f"will convert {field_name} to integer.")
+        logger.info(f"will convert {field_name} to integer.")
+        #try to convert to integer, if fails, add *** to the field and keep it as string
+        df = df.with_columns(
+            pl.when(pl.col(field_name).str.contains(r'^[0-9]+$'))
+            .then(pl.col(field_name))
+            .otherwise(pl.lit(None))
+            .alias(field_name)
+        )
+
         df = df.with_columns(pl.col(field_name).cast(pl.Int64))
+        
     elif data_type == "number":
-        ic(f"will convert {field_name} to number.")
+        logger.info(f"will convert {field_name} to number.")
         df = df.with_columns(pl.col(field_name).cast(pl.Float64))
     elif data_type == "string":
-        ic(f"will convert {field_name} to string.")
+        logger.info(f"will convert {field_name} to string.")
         df = df.with_columns(pl.col(field_name).cast(pl.Utf8))
     elif data_type == "boolean":
-        ic(f"will convert {field_name} to boolean.")
+        logger.info(f"will convert {field_name} to boolean.")
         df = df.with_columns(pl.col(field_name).cast(pl.Boolean))
     elif data_type == "phone number":
-        ic(f"will convert {field_name} to phone number.")
+        logger.info(f"will convert {field_name} to phone number.")
         #ex) (123) 456-7890 or 123-456-7890 or 123.456.7890 or 1234567890 -> (123) 456-7890
         df = df.with_columns(pl.col(field_name).str.replace_all(r"[^\d]", ""))
         # df = df.with_columns(
@@ -257,7 +280,7 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         df = _format_phone_numbers(df, field_name)
 
     elif data_type == "zip code":
-        ic(f"will convert {field_name} to zip code.")
+        logger.info(f"will convert {field_name} to zip code.")
         #ex) 12345-6789 or 12345 -> 12345
         #ex) 2345 -> 02345
         df = df.with_columns(pl.col(field_name).cast(pl.Utf8))
@@ -274,15 +297,15 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 
                              
     elif data_type == "email":
-        ic(f"will convert {field_name} to email.")
+        logger.info(f"will convert {field_name} to email.")
         regex_valid_email = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
         df = df.with_columns(
-            pl.when(pl.col(field_name).str.contains(regex_valid_email, literal=False))
-            .then(pl.col(field_name))
+            pl.when(pl.col(field_name).str.contains(regex_valid_email, literal=False) & pl.col(field_name).is_not_null())
+            .then(pl.col(field_name)).when(pl.col(field_name) == "").then(None)
             .otherwise("%%%%" + pl.col(field_name) + "%%%%")
         )
     else:
-        ic(f"{data_type} not supported.")
+        logger.info(f"{data_type} not supported.")
     
     return df
 
@@ -304,7 +327,7 @@ def _format_phone_numbers(df, field_name):
     ).otherwise(
         "%%%%" + pl.col(old_field_name) + "%%%%" # Return unchanged if not exactly 10 digits
     )
-    ic(field_name)
+    logger.info(field_name)
     return df.with_columns(formatted.alias(field_name))
     
 def get_excel_formats(output_config: dict) -> dict:
@@ -321,9 +344,9 @@ def get_excel_formats(output_config: dict) -> dict:
 def drop_duplicates(df: pl.DataFrame, config: dict) -> pl.DataFrame:
     fields_list = config.get("fields_to_consider_duplicates")
     if not fields_list:
-        ic(f"{fields_list} not found in the config. No fields to consider for duplicates.")
+        logger.info(f"{fields_list} not found in the config. No fields to consider for duplicates.")
         return df
-    ic(f"will drop duplicates based on {fields_list}")
+    logger.info(f"will drop duplicates based on {fields_list}")
     df = df.unique(subset=fields_list)
     return df
 
@@ -334,14 +357,14 @@ def truncate_max_length(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     max_length = field.get("max_length")
 
     if not max_length:
-        ic(f"{max_length} not found in the field.")
+        logger.debug(f"Will not format truncate {field_name}.")
         return df
-    ic(f"will truncate {field_name} to {max_length}")
+    logger.info(f"will truncate {field_name} to {max_length}")
     #chceck data type of the field
     if df[field_name].dtype == pl.datatypes.Utf8:
         df = df.with_columns(pl.col(field_name).str.slice(0, max_length))
     else:
-        ic(f"{field_name} is not of type Utf8.")
+        logger.info(f"{field_name} is not of type Utf8.")
         data_type = df[field_name].dtype
         df = df.with_columns(pl.col(field_name).cast(pl.datatypes.Utf8).str.slice(0, max_length))
         df = df.with_columns(pl.col(field_name).cast(data_type))
@@ -353,9 +376,9 @@ def create_record_off_field(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     expand_on = field.get("expand_on")
 
     if not expand_on:
-        ic(f"{expand_on} not found in the field. nothing to expand on")
+        logger.debug(f"Will not format expand on {field_name or field.get('alias')}.")
         return df
-    ic(f"will create record off {field_name} on {expand_on}")
+    logger.info(f"will create record off {field_name} on {expand_on}")
     df_alt = df.clone()
     #remove row if field is empty or null
     df_alt = df_alt.filter(pl.col(field_name).is_not_null())
@@ -368,26 +391,74 @@ def create_record_off_field(df: pl.DataFrame, field: dict) -> pl.DataFrame:
 def drop_nulls(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     drop_full_row_if_empty = field.get("drop_full_row_if_empty")
     if not drop_full_row_if_empty:
-        ic(f"{drop_full_row_if_empty} not found in the field.")
+        logger.debug(f"Will not format drop full row if {field.get('source_name') or field.get('alias')} is null.")
         return df
     source = field.get("source_name")
-    alias = field.get("alias")
+    alias = field.get("expand_on") or field.get("alias")
     field_name = alias if alias else source
-    ic(f"will drop nulls from {field_name}")
+    logger.info(f"will drop nulls from {field_name}")
+    #set legoberry_drop_field_indicator to true if field is null
+    if "legoberry_drop_field_indicator" in df.columns:
+        #add to existing drop field indicator if exists
+        df = df.with_columns(pl.when((pl.col(field_name).is_null()) | (pl.col(field_name) == "")).then(
+            True
+        ).otherwise(
+            pl.col("legoberry_drop_field_indicator")
+        ).alias("legoberry_drop_field_indicator"))
+    else:
+        df = df.with_columns(pl.when((pl.col(field_name).is_null()) | (pl.col(field_name) == "")).then(
+            True
+        ).otherwise(False).alias("legoberry_drop_field_indicator"))
 
-    df = df.filter(pl.col(field_name).is_not_null())
-    df = df.filter(pl.col(field_name).str.contains("%%%%%%%%", literal=True).is_not())
+    if "legoberry_reason_for_drop" in df.columns:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True & pl.col("legoberry_reason_for_drop").is_null()).then(
+            pl.lit(f"{source} is Null")
+        ).otherwise(
+            pl.col("legoberry_reason_for_drop")
+        ).alias("legoberry_reason_for_drop"))
+    else:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True).then(
+            pl.lit(f"{source} is Null")
+        ).alias("legoberry_reason_for_drop"))
+
+
+    #df = df.filter(pl.col(field_name).is_not_null())
+    #df = df.filter(pl.col(field_name).str.contains("%%%%%%%%", literal=True).is_not())
     return df
 
 def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     drop_if_length_less_than=field.get("drop_if_length_less_than")
     if not drop_if_length_less_than:
-        ic(f"{drop_if_length_less_than} not found in the field.")
+        logger.debug(f"Will not format check for length of {field.get('source_name')}.")
         return df
     source = field.get("source_name")
     alias = field.get("alias")
     field_name = alias if alias else source
+    logger.info(f"will drop if length of {field_name} is less than {drop_if_length_less_than}")
+    if "legoberry_drop_field_indicator" in df.columns:
+        df = df.with_columns(
+            pl.when(pl.col(field_name).str.lengths() < drop_if_length_less_than).then(
+                True
+            ).otherwise(
+                pl.col("legoberry_drop_field_indicator")
+            ).alias("legoberry_drop_field_indicator")
+        )
+    else:
+        df = df.with_columns(
+            pl.when(pl.col(field_name).str.lengths() < drop_if_length_less_than).then(
+                True
+            ).otherwise(False).alias("legoberry_drop_field_indicator")
+        )
+
+    if "legoberry_reason_for_drop" in df.columns:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True & pl.col("legoberry_reason_for_drop").is_null()).then(
+            pl.lit(f"Length of {field_name} is less than {drop_if_length_less_than}")
+        ).otherwise(
+            pl.col("legoberry_reason_for_drop")
+        ).alias("legoberry_reason_for_drop"))
+    else:
+        df = df.with_columns(pl.when(pl.col("legoberry_drop_field_indicator") == True).then(
+            pl.lit(f"Length of {field_name} is less than {drop_if_length_less_than}")
+        ).alias("legoberry_reason_for_drop"))
     
-    ic(f"will drop if length of {field_name} is less than {drop_if_length_less_than}")
-    df = df.filter(pl.col(field_name).str.lengths() >= drop_if_length_less_than)
     return df

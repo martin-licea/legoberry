@@ -1,0 +1,7 @@
+fields_in_field:
+  - delimiter: "|"
+    key_value_splitter: ":"
+    field_name: "Custom Fields"
+    ignore_junk_field_string: ["n"]
+input_file_extension: '.txt'
+delimiter: tab

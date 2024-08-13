@@ -2,7 +2,9 @@ from icecream import ic
 from pathlib import Path
 import yaml
 import polars as pl
-
+import logging 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
+logger = logging.getLogger(__name__)
 def find_data_files(config: dict) -> list:
     #find_source_file_type = config.get("find_source_file_type", None)
     input_file_extension = config.get("input_file_extension", None)
@@ -29,11 +31,11 @@ def find_data_files(config: dict) -> list:
 
     files = list(Path().glob(f"*{input_file_extension}"))
     target_file_suffix = [x.get('output_file_suffix') + x.get('output_file_extension') for x in config.get("output_file_configs", [])]
-    ic(target_file_suffix)
+    logger.info(target_file_suffix)
     #remove file from files if ends with any one of target_file_suffix list
     files_without_target = [path for path in files if not path.name.endswith(tuple(target_file_suffix))]
 
-    ic(files_without_target)
+    logger.info(files_without_target)
     pathed_files = [ {"name": file, "delimiter": input_delimiter} for file in files_without_target]
     if pathed_files:
         return pathed_files
@@ -64,8 +66,8 @@ def _read_data_file(file: Path, config: dict) -> pl.DataFrame:
     elif file_suffix == ".csv":
         return pl.read_csv(file_name)
     elif file_suffix in (".dat", ".txt"):
-        ic(file_name)
-        ic(delimiter)
+        logger.info(file_name)
+        logger.info(delimiter)
         df = pl.read_csv(file_name, separator=delimiter, truncate_ragged_lines=True, ignore_errors=True)
         return df
 
@@ -102,14 +104,32 @@ def read_data_files(config: dict) -> pl.DataFrame:
         #check if df exists
         if not "df" in locals():
             df = _read_data_file(file, config)
-            ic(df)
+            logger.info(df)
         else:
             df_new = _read_data_file(file, config)
             for column in df.columns:
                 if df[column].dtype == pl.datatypes.Utf8 or df_new[column].dtype == pl.datatypes.Utf8:
                     df = df.with_columns(df[column].cast(pl.datatypes.Utf8).alias(column))
                     df_new = df_new.with_columns(df_new[column].cast(pl.datatypes.Utf8).alias(column))
-            ic(df_new)
+            logger.info(df_new)
             df = pl.concat([df_new, df], how='vertical')
-    ic(df)
+    logger.info(df)
     return df, source_files
+
+def get_dropped_fields_file(file_suffix):
+    file_name = Path(f"dropped_fields{file_suffix}.csv")
+    if not file_name.exists():
+        logger.info(f"will create {file_name}")
+        file_name.touch()
+        action = "created"
+    else:
+        action = None
+    return file_name, action
+
+def clean_up_drop_fields(df, output_file_suffix):
+    drop_file, action = get_dropped_fields_file(output_file_suffix)
+    if action == "created":
+        #write out only if field drop_indicator is set to true
+        df.filter(pl.col("legoberry_drop_field_indicator") == True).write_csv(drop_file)
+    return df.filter(pl.col("legoberry_drop_field_indicator") == False)
+    
