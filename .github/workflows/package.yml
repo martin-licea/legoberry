@@ -34,11 +34,4 @@ jobs:
           requirements: 'requirements.txt'
           upload_exe_with_name: 'Legoberry${{ github.event.release.name }}'
           options: --onefile, --name "Legoberry${{ github.event.release.name }}", --windowed,
-publish:
-    needs: [build]
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: publish
-        run: |
-          echo 'publishing'
+
