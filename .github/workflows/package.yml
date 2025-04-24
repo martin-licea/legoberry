@@ -1,3 +1,6 @@
+push:
+    branches:
+      - main
 jobs:
   pyinstaller-build:
     runs-on: windows-latest
