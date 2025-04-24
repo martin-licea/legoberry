@@ -8,6 +8,8 @@ jobs:
     outputs:
       version: ${{ steps.tag_version.outputs.version }}
     steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
       - name: Get Tag Version
         id: tag_version
         run: |
