@@ -1,0 +1,17 @@
+jobs:
+  pyinstaller-build:
+    runs-on: windows-latest
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - run: echo "${{ github.event.release.name }}"
+      - run: echo "t"
+      - name: Create Executable
+        uses: sayyid5416/pyinstaller@v1
+        with:
+          python_ver: '3.11'
+          spec: 'src/legoberry.spec'
+          requirements: 'src/requirements.txt'
+          upload_exe_with_name: 'My executable'
+          options: --onefile, --name "Legoberry${{ github.event.release.name }}", --windowed,
