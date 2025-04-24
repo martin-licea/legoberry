@@ -10,12 +10,13 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
+      - run: git fetch --tags
       - name: Get Tag Version
         id: tag_version
         run: |
           MINOR_VERSION=$(cat VERSION)
-          echo "MINOR_VERSION: %${MINOR_VERSION}%"
-          git tag -l
+          echo "MINOR_VERSION: ${MINOR_VERSION}"
+          echo $(git tag -l| sort -Vr | head -n 1)
           LATEST_TAG=$(git tag -l "${MINOR_VERSION}*" | sort -Vr | head -n 1) 
           echo "LATEST_TAG: ${LATEST_TAG}"
           NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
