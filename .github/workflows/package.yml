@@ -20,7 +20,7 @@ jobs:
           NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
           echo "NEXT: ${NEXT}"
           NEW_TAG="${MINOR_VERSION}.${NEXT}"
-          echo "version=$NEW_TAG" >> $GITHUB_OUTPUT'
+          echo "version=$NEW_TAG" >> $GITHUB_OUTPUT
 
   pyinstaller-build:
     needs: [increment_version]
