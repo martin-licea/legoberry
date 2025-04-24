@@ -15,7 +15,7 @@ jobs:
         run: |
           MINOR_VERSION=$(cat VERSION)
           echo "MINOR_VERSION: ${MINOR_VERSION}"
-          LATEST_TAG=$(git tag -l "${MINOR_VERESION}*" | head -n 1)
+          LATEST_TAG=$(git tag -l "${MINOR_VERESION}*" | sort -Vr | head -n 1)
           echo "LATEST_TAG: ${LATEST_TAG}"
           NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
           echo "NEXT: ${NEXT}"
