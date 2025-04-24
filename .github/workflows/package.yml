@@ -14,8 +14,11 @@ jobs:
         id: tag_version
         run: |
           MINOR_VERSION=$(cat VERSION)
+          echo "MINOR_VERSION: ${MINOR_VERSION}"
           LATEST_TAG=$(git tag -l "${MINOR_VERESION}*" | head -n 1)
+          echo "LATEST_TAG: ${LATEST_TAG}"
           NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
+          echo "NEXT: ${NEXT}"
           NEW_TAG="${MINOR_VERSION}.${NEXT}"
           echo "version=$NEW_TAG" >> $GITHUB_OUTPUT'
 
