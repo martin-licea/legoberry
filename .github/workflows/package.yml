@@ -46,6 +46,8 @@ jobs:
       - run: |
           cd dist
           dir
+      - run: |
+          zip -r Legoberry-${{ needs.increment_version.outputs.version }}.zip ./dist
       - name: release
         uses: actions/create-release@v1
         id: create_release
@@ -63,6 +65,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: '${{ steps.create_exec.outputs.executable_path }}/Legoberry-${{ needs.increment_version.outputs.version }}.zip'
+          asset_path: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
           asset_name: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
           asset_content_type: application/zip
