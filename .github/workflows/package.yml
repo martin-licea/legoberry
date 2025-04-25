@@ -44,7 +44,7 @@ jobs:
           upload_exe_with_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
           options: --onefile, --name "Legoberry${{ github.event.release.name }}-${{ needs.increment_version.outputs.version }}", --windowed,
       - run: |
-          cd .dist
+          cd dist
           dir
       - name: release
         uses: actions/create-release@v1
