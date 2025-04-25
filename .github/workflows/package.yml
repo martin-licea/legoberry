@@ -40,8 +40,12 @@ jobs:
           python_ver: '3.11'
           spec: 'legoberry.spec'
           requirements: 'requirements.txt'
+          exe_path: ./dist
           upload_exe_with_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
           options: --onefile, --name "Legoberry${{ github.event.release.name }}-${{ needs.increment_version.outputs.version }}", --windowed,
+      - run: |
+          cd .dist
+          dir
       - name: release
         uses: actions/create-release@v1
         id: create_release
