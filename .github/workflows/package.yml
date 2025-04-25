@@ -46,8 +46,11 @@ jobs:
       - run: |
           cd dist
           dir
-      - run: |
-          zip -r Legoberry-${{ needs.increment_version.outputs.version }}.zip ./dist
+      - name: Zip up dist
+        shell: pwsh
+        run: |
+          Compress-Archive -Path .\dist\* `
+                          -DestinationPath .\Legoberry-${{ needs.increment_version.outputs.version }}.zip
       - name: release
         uses: actions/create-release@v1
         id: create_release
