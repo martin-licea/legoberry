@@ -41,6 +41,10 @@ jobs:
           requirements: 'requirements.txt'
           upload_exe_with_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
           options: --onefile, --name "Legoberry${{ github.event.release.name }}-${{ needs.increment_version.outputs.version }}", --windowed,
+      - run: |
+          location=$(ls -ltr)
+          echo $location
+          ls -ltr
       - name: release
         uses: actions/create-release@v1
         id: create_release
@@ -58,6 +62,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: 'Legoberry-${{ needs.increment_version.outputs.version }}'
-          asset_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
+          asset_path: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
+          asset_name: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
           asset_content_type: application/zip
