@@ -39,6 +39,25 @@ jobs:
           python_ver: '3.11'
           spec: 'legoberry.spec'
           requirements: 'requirements.txt'
-          upload_exe_with_name: 'Legoberry${{ github.event.release.name }}'
-          options: --onefile, --name "Legoberry${{ github.event.release.name }}", --windowed,
-
+          upload_exe_with_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
+          options: --onefile, --name "Legoberry${{ github.event.release.name }}-${{ needs.increment_version.outputs.version }}", --windowed,
+      - name: release
+        uses: actions/create-release@v1
+        id: create_release
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ needs.increment_version.outputs.version }}
+          tag_name: ${{ needs.increment_version.outputs.version }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: upload windows artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: 'Legoberry-${{ needs.increment_version.outputs.version }}'
+          asset_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
+          asset_content_type: application/zip
