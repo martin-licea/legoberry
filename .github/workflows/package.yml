@@ -28,7 +28,7 @@ jobs:
   #         echo "version=$NEW_TAG" >> $GITHUB_OUTPUT
 
   pyinstaller-build:
-    needs: [increment_version]
+    # needs: [increment_version]
     runs-on: windows-latest
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
