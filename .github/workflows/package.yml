@@ -6,26 +6,26 @@ on:
   #   branches:
   #     - main
 jobs:
-  increment_version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.tag_version.outputs.version }}
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v4
-      - run: git fetch --tags
-      - name: Get Tag Version
-        id: tag_version
-        run: |
-          MINOR_VERSION=$(cat VERSION)
-          echo "MINOR_VERSION: ${MINOR_VERSION}"
-          echo $(git tag -l| sort -Vr | head -n 1)
-          LATEST_TAG=$(git tag -l "${MINOR_VERSION}*" | sort -Vr | head -n 1) 
-          echo "LATEST_TAG: ${LATEST_TAG}"
-          NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
-          echo "NEXT: ${NEXT}"
-          NEW_TAG="${MINOR_VERSION}.${NEXT}"
-          echo "version=$NEW_TAG" >> $GITHUB_OUTPUT
+  # increment_version:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     version: ${{ steps.tag_version.outputs.version }}
+  #   steps:
+  #     - name: Check out repo
+  #       uses: actions/checkout@v4
+  #     - run: git fetch --tags
+  #     - name: Get Tag Version
+  #       id: tag_version
+  #       run: |
+  #         MINOR_VERSION=$(cat VERSION)
+  #         echo "MINOR_VERSION: ${MINOR_VERSION}"
+  #         echo $(git tag -l| sort -Vr | head -n 1)
+  #         LATEST_TAG=$(git tag -l "${MINOR_VERSION}*" | sort -Vr | head -n 1) 
+  #         echo "LATEST_TAG: ${LATEST_TAG}"
+  #         NEXT=$(( ${LATEST_TAG##*.*.} + 1 ))
+  #         echo "NEXT: ${NEXT}"
+  #         NEW_TAG="${MINOR_VERSION}.${NEXT}"
+  #         echo "version=$NEW_TAG" >> $GITHUB_OUTPUT
 
   pyinstaller-build:
     needs: [increment_version]
@@ -35,7 +35,7 @@ jobs:
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
       - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
       - run: echo "${{ github.event.release.name }}"
-      - run: echo "new version is ${{ needs.increment_version.outputs.version }}"
+      #- run: echo "new version is ${{ needs.increment_version.outputs.version }}"
       - run: echo "upload url is ${{ github.event.release.upload_url }}"
       - name: Create Executable
         uses: sayyid5416/pyinstaller@v1
@@ -45,8 +45,8 @@ jobs:
           spec: 'legoberry.spec'
           requirements: 'requirements.txt'
           exe_path: ./dist
-          upload_exe_with_name: 'Legoberry-${{ needs.increment_version.outputs.version }}'
-          options: --onefile, --name "Legoberry${{ github.event.release.name }}-${{ needs.increment_version.outputs.version }}", --windowed,
+          upload_exe_with_name: 'Legoberry-${{ github.event.release.name }}'
+          options: --onefile, --name "Legoberry-${{ github.event.release.name }}", --windowed,
       - run: |
           cd dist
           dir
@@ -54,7 +54,7 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path .\dist `
-                          -DestinationPath .\Legoberry-${{ needs.increment_version.outputs.version }}.zip
+                          -DestinationPath .\Legoberry-${{ github.event.release.name }}.zip
       # - name: release
       #   uses: actions/create-release@v1
       #   id: create_release
@@ -72,6 +72,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
-          asset_name: 'Legoberry-${{ needs.increment_version.outputs.version }}.zip'
+          asset_path: 'Legoberry-${{ github.event.release.name }}.zip'
+          asset_name: 'Legoberry-${{ github.event.release.name }}.zip'
           asset_content_type: application/zip
