@@ -26,11 +26,14 @@ _note_: a period in the "parameter" field denotes a child item
 | fields.replace.from| source data string to replace| 'Kindergarden Teacher'|
 | fields.replace.to | target string to replace the from string to| 'kinder'|
 | fields.default_value| new field to be created with hardcoded values. this only works if there is no source_name field specified| 'mch|
+| fields.allow_special_char_list|  special characters to include when creating a new field using `default_value`. Only required if setting `source_fields_alpha_only` to True  | `['-']`|
+| fields.source_fields_alpha_only| When setting `default_value`, this allows for only alpha characters be used. | `true` |
 |fields.split_by| a string in quotes to split a field value into| if field has `'martin licea'`. you would use ` ' ' ` as this parameter to split `martin` and `licea`|
 |fields.split| a list of target column names to split into. This field only works if you're using split_by||
 |fields.split.index| if you split `martin licea` into 2, `martin` would be index 1 and `licea` would be index 2|2|
 |fields.split.target_name | name of new field to be created from the split| 'first|
 |max_target_file_size| the maximum number of rows the target file can contain. this will create multiple files if this number is smaller than the total aggregated rows.| 500 |
+
 
 
 sample config 
@@ -100,4 +103,13 @@ fields:
 - target_name: 'lead'
   default_value: 'mch' #new field. Only works if there is no source_name field.
 max_target_file_size: 500
+```
+## Running Tests
+To install dependencies for testing:
+```
+pip install -r requirements-test.text
+```
+Run all unit tests with Pytest:
+```
+pytest tests/unit
 ```

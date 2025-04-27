@@ -1,7 +1,10 @@
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: 
+      - created
+  # push:
+  #   branches:
+  #     - main
 jobs:
   increment_version:
     runs-on: ubuntu-latest
@@ -49,7 +52,7 @@ jobs:
       - name: Zip up dist
         shell: pwsh
         run: |
-          Compress-Archive -Path .\dist\* `
+          Compress-Archive -Path .\dist `
                           -DestinationPath .\Legoberry-${{ needs.increment_version.outputs.version }}.zip
       - name: release
         uses: actions/create-release@v1
