@@ -1,5 +1,5 @@
 # What is legoberry?
-
+It's Data Engineering in a box! Well, in yaml...
 legoberry is a utility to merge multiple csv files into 1 or more files. It takes in a schema and does simple transformations stated below. 
 # How to run legoberry
 1. create a config.yml in your legoberry folder.
