@@ -192,6 +192,7 @@ def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     field_name = alias if alias else field.get("source_name")
     default_value = field.get("default_value")
     source_fields_alpha_only = field.get("source_fields_alpha_only")
+    allow_special_char_list = field.get("allow_special_char_list", [])
     if not alias:
         logger.info(f"alias not found for {field_name}. Will skip creating new field.")
         return df
@@ -205,8 +206,9 @@ def create_new_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     logger.info(f"will create {alias} with default value {default_value}")
     if  "{" in default_value and "}" in default_value: 
         split_values = re.split(r'[{}]', default_value)
+        allowed_chars = ''.join(re.escape(char) for char in allow_special_char_list)
         if source_fields_alpha_only:
-            replace = r'[^a-zA-Z]'
+            replace = rf'[^a-zA-Z{allowed_chars}]'
             #if p.col add replace_all function
             split_values = [f"pl.col('{value.strip()}').str.replace_all('{replace}', '')" if i % 2 == 1 else f"'{value}'" for i, value in enumerate(split_values) if value.strip()]        # Join the list back into a string
         else:
