@@ -3,6 +3,7 @@ from pathlib import Path
 import yaml
 import polars as pl
 import logging 
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
 logger = logging.getLogger(__name__)
 def find_data_files(config: dict) -> list:
