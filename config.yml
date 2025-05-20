@@ -1,5 +1,6 @@
 log: 'log.txt'
 input_file_extension: '.txt'
+ignore_file_pattern: 'requirements[-a-zA-Z]*.txt'
 delimiter: tab
 fields_in_field:
   - field_name: "Custom Fields"
@@ -68,6 +69,7 @@ output_file_configs:
     alias: 'State/Province'
     casing: 'upper'
     in_list: states.yml
+    replace_with_file: state_abv.yml
   - source_name: 'Zip'
     alias: 'Zip/Postal Code'
     data_type: zip code
@@ -89,6 +91,8 @@ output_file_configs:
   - alias: 'Username'
     default_value: "{First Name}.{Last Name}"
     source_fields_alpha_only: true #this makes it so that the {} values can only be letters 
+    allow_special_char_list:
+    - "-"
   ordered_headers:
     - UPDATE
     - Username
@@ -156,6 +160,7 @@ output_file_configs:
   - source_name: 'State'
     casing: 'upper'
     in_list: states.yml
+    replace_with_file: state_abv.yml
   - source_name: 'Zip'
     data_type: zip code
     #excel_format: '00000'
@@ -184,6 +189,7 @@ output_file_configs:
     alias: tags
     casing: 'upper'
     in_list: states.yml
+    replace_with_file: state_abv.yml
   - source_name: 'Email'
     data_type: email
   - source_name: 'Alternate E-Mail Address'

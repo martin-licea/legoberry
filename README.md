@@ -23,6 +23,7 @@ _note_: a period in the "parameter" field denotes a child item
 | fields.secondary_source_name | 2nd option for source name in case different files refer to the same field differently| 'STATE' |
 | fields.target_name | column name to rename to in the target file. must be in quotes | 'tag'|
 | fields.replace | list of different values in the data of this field to replace| <pre>replace:</br>  - from: 'Early Childhood Educator'</br>    to: 'prek'</pre>|
+| replace_with_file | allows you to pass in a file with the contents of 'replace'. makes the config easier to use. | my_file.yml|
 | fields.replace.from| source data string to replace| 'Kindergarden Teacher'|
 | fields.replace.to | target string to replace the from string to| 'kinder'|
 | fields.default_value| new field to be created with hardcoded values. this only works if there is no source_name field specified| 'mch|

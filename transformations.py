@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
 logger = logging.getLogger(__name__)
-
+from pathlib import Path
 ic.configureOutput(contextAbsPath=True)
 
 def do_explore(conifg, df):
@@ -84,12 +84,19 @@ def rename_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     
     return df
 
+# def replace_strings_with_file(df: pl.DataFrame, field: dict) -> pl.DataFrame:
+#     with open(filename) as f:
+#         data = yaml.safe_load(f)
+#     field["replace"] = data
+#     return replace_strings(df, field)
+
 def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     source = field.get("source_name")
     alias = field.get("alias")
-    replace = field.get("replace")
-
-    if (not source and not alias) or not replace:
+    replace = field.get("replace", [])
+    replace_filename = field.get("replace_with_file")
+    
+    if (not source and not alias) or not (replace or replace_filename):
         logger.debug(field)
         logger.debug("source or replace not found in the field.")
         return df
@@ -100,6 +107,10 @@ def replace_strings(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     if not alias and source not in df.columns:
         logger.info(f"{source} not found in the DataFrame.")
         return df
+    if replace_filename:
+        with open(replace_filename) as f:
+            data = yaml.safe_load(f)
+        replace = replace + data
     if alias:
         field_name = alias
     else:
