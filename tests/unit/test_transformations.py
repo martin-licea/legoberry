@@ -75,10 +75,6 @@ def sample_polars_df():
         "age": [25, 30, 35, 40],
         "salary": [50000.0, 60000.0, 70000.0, 80000.0],
         "is_active": [True, False, True, False],
-        "address": [],
-        "zip": [],
-        "city": [],
-        "state": [],
     })
 
 def test_create_new_fields(sample_polars_df):
