@@ -1,5 +1,6 @@
 log: 'log.txt'
 input_file_extension: '.txt'
+ignore_file_pattern: 'requirements[-a-zA-Z]*.txt'
 delimiter: tab
 fields_in_field:
   - field_name: "Custom Fields"

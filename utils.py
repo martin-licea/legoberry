@@ -3,12 +3,13 @@ from pathlib import Path
 import yaml
 import polars as pl
 import logging 
-
+import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
 logger = logging.getLogger(__name__)
 def find_data_files(config: dict) -> list:
     #find_source_file_type = config.get("find_source_file_type", None)
     input_file_extension = config.get("input_file_extension", None)
+    ignore_file_pattern = config.get("ignore_file_pattern", None)
     input_delimiter = config.get("delimiter", None)
     source_files = config.get("source_files", [])
     pathed_files = []
@@ -35,6 +36,10 @@ def find_data_files(config: dict) -> list:
     logger.info(target_file_suffix)
     #remove file from files if ends with any one of target_file_suffix list
     files_without_target = [path for path in files if not path.name.endswith(tuple(target_file_suffix))]
+    # Apply regex pattern to ignore files
+    if ignore_file_pattern:
+        pattern = re.compile(ignore_file_pattern)
+        files_without_target = [f for f in files_without_target if not pattern.search(f.name)]
 
     logger.info(files_without_target)
     pathed_files = [ {"name": file, "delimiter": input_delimiter} for file in files_without_target]

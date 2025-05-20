@@ -25,7 +25,6 @@ def main():
         for field in output.get('fields'):
             df = tf.rename_columns(df, field)
             df = tf.create_new_fields(df, field)
-            # df = tf.replace_strings_with_file(df, field, replace_with_file)
             df = tf.replace_strings(df, field)
             df = tf.fix_casing(df, field)
             df = tf.validate_against_list(df, field)
