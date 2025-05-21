@@ -197,11 +197,11 @@ def test_drop_nulls_and_drop_if_length_less_than(sample_polars_df):
     assert "is less than 1" in reason_len[-1]
 
 def test_format_fields_variants():
-    # date with reformat
-    df = pl.DataFrame({"d": ["2020-01-02", ""]})
+    # date with reformat and invalid dates flagged
+    df = pl.DataFrame({"d": ["2020-01-02", "bad-date", ""]})
     field_date = {"source_name": "d", "data_type": "date", "data_format": "%Y-%m-%d", "reformat_to": "%d/%m/%Y"}
     df_date = transformations.format_fields(df, field_date)
-    assert df_date["d"].to_list() == ["02/01/2020", None]
+    assert df_date["d"].to_list() == ["02/01/2020", "%%%%bad-date%%%%", None]
 
     # integer with numeric input
     df2 = pl.DataFrame({"i": [1, None]})

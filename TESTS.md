@@ -64,7 +64,7 @@
 
  ### test_format_fields_variants
  Exercises `transformations.format_fields` across all supported data types:
- - **date**: parses and reformats dates (empty strings become `None`).
+- **date**: parses and reformats dates (`empty strings become None`, invalid dates are flagged with `%%%%…%%%%`).
  - **integer**: casts numeric values to integer type (`Int64`) preserving nulls.
  - **number**: casts numeric values to float type (`Float64`) preserving nulls.
  - **string**: casts values to string (`Utf8`).

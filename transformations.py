@@ -248,18 +248,19 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if not data_format:
             logger.info(f'date not found in the "{field_name}" field. Will skip formatting to date.')
             return df
-        logger.debug(f"Will not format {field_name} to date.")
-        #if date conversion fails, add *** to the field and keep it as string
-        df = df.with_columns(pl.col(field_name).str.to_date(data_format, strict=False))
+        parsed_date = pl.col(field_name).str.to_date(data_format, strict=False)
         if reformat_to:
-            try:
-                logger.info(f"will reformat {field_name} to {reformat_to}")
-                df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
-            except exception as e:
-                logger.error(e)
-                raise ValueError(f'Check source value for {field_name}')
+            parsed = parsed_date.dt.strftime(reformat_to)
         else:
-            logger.info(f'"reformat_to" not found in the field.')
+            parsed = parsed_date
+        df = df.with_columns(
+            pl.when(pl.col(field_name) == "")
+            .then(None)
+            .when(parsed.is_not_null())
+            .then(parsed)
+            .otherwise("%%%%" + pl.col(field_name) + "%%%%")
+            .alias(field_name)
+        )
     elif data_type == "integer":
         logger.info(f"will convert {field_name} to integer.")
         #try to convert to integer, if fails, add *** to the field and keep it as string
