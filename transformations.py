@@ -250,7 +250,7 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
             return df
         logger.debug(f"Will not format {field_name} to date.")
         #if date conversion fails, add *** to the field and keep it as string
-        df = df.with_columns(pl.col(field_name).str.to_date(data_format))
+        df = df.with_columns(pl.col(field_name).str.to_date(data_format, strict=False))
         if reformat_to:
             try:
                 logger.info(f"will reformat {field_name} to {reformat_to}")
