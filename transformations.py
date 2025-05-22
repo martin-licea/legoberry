@@ -152,7 +152,7 @@ def fix_casing(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         #capitalize letter after ' and -
         df = df.with_columns(pl.col(field_name).apply(lambda value: re.sub(r"('|\-)(\w)", _name_replacement, value)))
         #if the field starts with a single letter followed by a space, and the length of the field is more than 2, remove the first letter and the space
-        df = df.with_columns(pl.when(pl.col(field_name).str.lengths() > 2).then(
+        df = df.with_columns(pl.when(pl.col(field_name).str.len_chars() > 2).then(
             pl.col(field_name).str.replace_all(r"(^\w\s)", "$2")
         ).otherwise(
             pl.col(field_name)
@@ -248,18 +248,19 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if not data_format:
             logger.info(f'date not found in the "{field_name}" field. Will skip formatting to date.')
             return df
-        logger.debug(f"Will not format {field_name} to date.")
-        #if date conversion fails, add *** to the field and keep it as string
-        df = df.with_columns(pl.col(field_name).str.to_date(data_format))
+        parsed_date = pl.col(field_name).str.to_date(data_format, strict=False)
         if reformat_to:
-            try:
-                logger.info(f"will reformat {field_name} to {reformat_to}")
-                df = df.with_columns(pl.col(field_name).dt.strftime(reformat_to))
-            except exception as e:
-                logger.error(e)
-                raise ValueError(f'Check source value for {field_name}')
+            parsed = parsed_date.dt.strftime(reformat_to)
         else:
-            logger.info(f'"reformat_to" not found in the field.')
+            parsed = parsed_date
+        df = df.with_columns(
+            pl.when(pl.col(field_name) == "")
+            .then(None)
+            .when(parsed.is_not_null())
+            .then(parsed)
+            .otherwise("%%%%" + pl.col(field_name) + "%%%%")
+            .alias(field_name)
+        )
     elif data_type == "integer":
         logger.info(f"will convert {field_name} to integer.")
         #try to convert to integer, if fails, add *** to the field and keep it as string
@@ -297,8 +298,8 @@ def format_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         #ex) 12345-6789 or 12345 -> 12345
         #ex) 2345 -> 02345
         df = df.with_columns(pl.col(field_name).cast(pl.Utf8))
-        condition = pl.col(field_name).str.lengths() == 4
-        warning_condition = pl.col(field_name).str.lengths() < 4
+        condition = pl.col(field_name).str.len_chars() == 4
+        warning_condition = pl.col(field_name).str.len_chars() < 4
         formatted = pl.when(condition).then(
             pl.col(field_name).str.zfill(5)
         ).when(warning_condition).then(
@@ -326,9 +327,9 @@ def _format_phone_numbers(df, field_name):
     old_field_name = f"{field_name}_old"
     df = df.rename({field_name: old_field_name})
     # Apply formatting if the condition is met
-    condition = pl.col(old_field_name).str.lengths() == 10
-    #if phone number is 11 digits long and starts with 1, remove 1
-    eleven_digits = pl.col(old_field_name).str.lengths() == 11
+    condition = pl.col(old_field_name).str.len_chars() == 10
+    # if phone number is 11 digits long and starts with 1, remove 1
+    eleven_digits = pl.col(old_field_name).str.len_chars() == 11
     formatted = pl.when(condition).then(
         "(" + pl.col(old_field_name).str.slice(0, 3) + 
         ") " + pl.col(old_field_name).str.slice(3, 3) + 
@@ -450,7 +451,7 @@ def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     logger.info(f"will drop if length of {field_name} is less than {drop_if_length_less_than}")
     if "legoberry_drop_field_indicator" in df.columns:
         df = df.with_columns(
-            pl.when(pl.col(field_name).str.lengths() < drop_if_length_less_than).then(
+            pl.when(pl.col(field_name).str.len_chars() < drop_if_length_less_than).then(
                 True
             ).otherwise(
                 pl.col("legoberry_drop_field_indicator")
@@ -458,7 +459,7 @@ def drop_if_length_less_than(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         )
     else:
         df = df.with_columns(
-            pl.when(pl.col(field_name).str.lengths() < drop_if_length_less_than).then(
+            pl.when(pl.col(field_name).str.len_chars() < drop_if_length_less_than).then(
                 True
             ).otherwise(False).alias("legoberry_drop_field_indicator")
         )
