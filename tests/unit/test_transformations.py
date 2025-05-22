@@ -253,11 +253,12 @@ def test_drop_if_length_less_than_with_non_ascii():
     df_len = transformations.drop_if_length_less_than(df, field_len)
     ind_len = df_len["legoberry_drop_field_indicator"].to_list()
     reason_len = df_len["legoberry_reason_for_drop"].to_list()
-    # Note: str.lengths() measures byte length, so multibyte chars count accordingly
-    # Expected: only empty string ("" -> length 0) is flagged for drop (length < 2)
-    assert ind_len == [False, False, True, False, False]
+    # Note: str.len_chars() measures Unicode character count, so multibyte chars count as one character
+    # Expected: only "ñ" and empty string ("") are flagged for drop (length < 2)
+    assert ind_len == [True, False, True, False, False]
+    assert reason_len[0] == "Length of col is less than 2"
     assert reason_len[2] == "Length of col is less than 2"
-    for idx in [0, 1, 3, 4]:
+    for idx in [1, 3, 4]:
         assert reason_len[idx] is None
 
 def test_fix_casing_name_initial_letter_removal_non_ascii_and_short():
