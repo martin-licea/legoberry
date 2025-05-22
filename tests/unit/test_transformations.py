@@ -188,6 +188,7 @@ def test_drop_nulls_and_drop_if_length_less_than(sample_polars_df):
     reason = df_null["legoberry_reason_for_drop"].to_list()
     assert indicator == [True, False, True]
     assert reason[0] == "col is Null"
+    assert reason[2] == "col is Null"
     # drop_if_length_less_than
     field_len = {"source_name": "col", "alias": None, "drop_if_length_less_than": 1}
     df_len = transformations.drop_if_length_less_than(df, field_len)
@@ -244,3 +245,23 @@ def test_format_fields_variants():
     field_email = {"source_name": "e", "data_type": "email"}
     df8_e = transformations.format_fields(df8, field_email)
     assert df8_e["e"].to_list() == ["test@example.com", "%%%%bad-email%%%%", None]
+
+
+def test_drop_if_length_less_than_with_non_ascii():
+    df = pl.DataFrame({"col": ["ñ", "éé", "", None, "abc"]})
+    field_len = {"source_name": "col", "alias": None, "drop_if_length_less_than": 2}
+    df_len = transformations.drop_if_length_less_than(df, field_len)
+    ind_len = df_len["legoberry_drop_field_indicator"].to_list()
+    reason_len = df_len["legoberry_reason_for_drop"].to_list()
+    # Note: str.lengths() measures byte length, so multibyte chars count accordingly
+    # Expected: only empty string ("" -> length 0) is flagged for drop (length < 2)
+    assert ind_len == [False, False, True, False, False]
+    assert reason_len[2] == "Length of col is less than 2"
+    for idx in [0, 1, 3, 4]:
+        assert reason_len[idx] is None
+
+def test_fix_casing_name_initial_letter_removal_non_ascii_and_short():
+    df = pl.DataFrame({"name": ["j doe", "É Dupont", "X "]})
+    df_name = transformations.fix_casing(df, {"source_name": "name", "casing": "name"})
+    # "j doe" -> "Doe"; "É Dupont" -> "Dupont"; "X " length <=2 remains unchanged
+    assert df_name["name"].to_list() == ["Doe", "Dupont", "X "]
