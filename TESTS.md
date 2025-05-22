@@ -75,3 +75,8 @@
    `%%%%…%%%%`.
  - **email**: validates email addresses, preserving valid ones, flagging invalid ones with `%%%%…%%%%`,
    and converting empty strings to `None`.
+
+### test_remove_duplicates_from_fields
+Verifies that `transformations.remove_duplicates_from_fields` removes substrings from a target field
+based on values in specified other fields, wraps the modified field value with `%%%%` markers for review,
+and leaves entries without duplicates unchanged.

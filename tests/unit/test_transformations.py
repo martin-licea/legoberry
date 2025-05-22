@@ -266,3 +266,39 @@ def test_fix_casing_name_initial_letter_removal_non_ascii_and_short():
     df_name = transformations.fix_casing(df, {"source_name": "name", "casing": "name"})
     # "j doe" -> "Doe"; "É Dupont" -> "Dupont"; "X " length <=2 remains unchanged
     assert df_name["name"].to_list() == ["Doe", "Dupont", "X "]
+
+def test_remove_duplicates_from_fields():
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Springfield, IL 62704", 
+            "456 Elm St", 
+            "123 Orange Grove st. #1323, orange CA. 92616",
+            "123 orange grove st. unit 92616 orange ca 92616"
+        ],
+        "City": ["Springfield", "Boston", "Orange", "Orange"],
+        "State": ["IL", "MA", "CA", "CA"],
+        "Zip": ["62704", "02108", "92616", "92616"],
+    })
+    field = {
+        "source_name": "Address",
+        "alias": "Address",
+        "remove_duplicates_from_fields": ["City", "State", "Zip"],
+    }
+    df2 = transformations.remove_duplicates_from_fields(df, field)
+    # First row should have duplicates removed and be wrapped with markers
+    addr0 = df2["Address"][0]
+    assert addr0.startswith("%%%%") and addr0.endswith("%%%%")
+    assert "Springfield" not in addr0 and "IL" not in addr0 and "62704" not in addr0
+    assert "%%%%123 Main St%%%%" == addr0
+    # Verify the cleaned address inside the markers
+    assert addr0.strip('%') == "123 Main St"
+    # Second row should remain unchanged
+    addr1 = df2["Address"][1]
+    assert not isinstance(addr1, type(None))
+    assert not addr1.startswith("%%%%") and addr1 == "456 Elm St"
+    addr2 = df2["Address"][2]
+    assert addr2.startswith("%%%%") and addr2.endswith("%%%%")
+    assert "%%%%123 Orange Grove st. #1323%%%%" == addr2
+    addr3 = df2["Address"][3]
+    assert addr3.startswith("%%%%") and addr3.endswith("%%%%")
+    assert "%%%%123 orange grove st. unit 92616%%%%" == addr3

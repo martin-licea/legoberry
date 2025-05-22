@@ -181,6 +181,47 @@ def validate_against_list(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     df = df.with_columns(pl.col(field_name).apply(lambda x: f'%%%%{x}%%%%' if x not in list_yaml else x))
     
     return df
+def remove_duplicates_from_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame:
+    """
+    Remove duplicate substrings from a field based on values in other fields.
+    If any duplicates are removed, wrap the result with %%%% markers.
+    """
+    remove_fields = field.get("remove_duplicates_from_fields", [])
+    if not remove_fields:
+        return df
+    alias = field.get("alias")
+    source = field.get("source_name")
+    field_name = alias if alias else source
+    if field_name not in df.columns:
+        return df
+    valid_remove_fields = [f for f in remove_fields if f in df.columns]
+    if not valid_remove_fields:
+        return df
+    def _remove_duplicates(row):
+        addr = row[field_name]
+        if not isinstance(addr, str):
+            return addr
+        modified = False
+        # Remove each duplicate value along with surrounding commas/spaces
+        for dup in valid_remove_fields:
+            val = row[dup]
+            if val and isinstance(val, str) and re.search(re.escape(val), addr, flags=re.IGNORECASE):
+                pattern = rf"[\s,\.]*(?:\b{re.escape(val)}\b)[\s,\.]*"
+                matches = list(re.finditer(pattern, addr, flags=re.IGNORECASE))
+                if matches:
+                    last = matches[-1]
+                    addr = addr[:last.start()] + " " + addr[last.end():]
+                    modified = True
+        if modified:
+            addr = re.sub(r"\s+", " ", addr).strip(", .")
+            return f"%%%%{addr}%%%%"
+        return addr
+    df = df.with_columns(
+        pl.struct([field_name] + valid_remove_fields)
+          .apply(_remove_duplicates)
+          .alias(field_name)
+    )
+    return df
 
 def select_columns(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     select_fields = field.get("ordered_headers")
