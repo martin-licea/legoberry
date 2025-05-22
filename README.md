@@ -24,6 +24,7 @@ _note_: a period in the "parameter" field denotes a child item
 | fields.target_name | column name to rename to in the target file. must be in quotes | 'tag'|
 | fields.replace | list of different values in the data of this field to replace| <pre>replace:</br>  - from: 'Early Childhood Educator'</br>    to: 'prek'</pre>|
 | replace_with_file | allows you to pass in a file with the contents of 'replace'. makes the config easier to use. | my_file.yml|
+| remove_duplicates_from_fields | list of other field names to remove duplicate substrings from this field; removed parts are wrapped with `%%%%` markers for manual review | <pre>remove_duplicates_from_fields:<br>  - City<br>  - State/Province<br>  - Zip/Postal Code</pre>|
 | fields.replace.from| source data string to replace| 'Kindergarden Teacher'|
 | fields.replace.to | target string to replace the from string to| 'kinder'|
 | fields.default_value| new field to be created with hardcoded values. this only works if there is no source_name field specified| 'mch|

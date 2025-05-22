@@ -27,6 +27,8 @@ def main():
             df = tf.create_new_fields(df, field)
             df = tf.replace_strings(df, field)
             df = tf.fix_casing(df, field)
+            # Remove duplicate substrings from this field based on other fields
+            df = tf.remove_duplicates_from_fields(df, field)
             df = tf.validate_against_list(df, field)
             df = tf.truncate_max_length(df, field)
             df = tf.format_fields(df, field)
