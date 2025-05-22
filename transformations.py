@@ -207,9 +207,10 @@ def remove_duplicates_from_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame
             val = row[dup]
             if val and isinstance(val, str) and re.search(re.escape(val), addr, flags=re.IGNORECASE):
                 pattern = rf"[\s,\.]*(?:\b{re.escape(val)}\b)[\s,\.]*"
-                new_addr, count = re.subn(pattern, " ", addr, flags=re.IGNORECASE)
-                if count and count > 0:
-                    addr = new_addr
+                matches = list(re.finditer(pattern, addr, flags=re.IGNORECASE))
+                if matches:
+                    last = matches[-1]
+                    addr = addr[:last.start()] + " " + addr[last.end():]
                     modified = True
         if modified:
             addr = re.sub(r"\s+", " ", addr).strip(", .")

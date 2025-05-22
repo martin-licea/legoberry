@@ -269,10 +269,15 @@ def test_fix_casing_name_initial_letter_removal_non_ascii_and_short():
 
 def test_remove_duplicates_from_fields():
     df = pl.DataFrame({
-        "Address": ["123 Main St, Springfield, IL 62704", "456 Elm St", "123 Orange Grove st. #1323, orange, CA. 92616"],
-        "City": ["Springfield", "Boston", "Orange"],
-        "State": ["IL", "MA", "CA"],
-        "Zip": ["62704", "02108", "92616"],
+        "Address": [
+            "123 Main St, Springfield, IL 62704", 
+            "456 Elm St", 
+            "123 Orange Grove st. #1323, orange CA. 92616",
+            "123 orange grove st. unit 92616 orange ca 92616"
+        ],
+        "City": ["Springfield", "Boston", "Orange", "Orange"],
+        "State": ["IL", "MA", "CA", "CA"],
+        "Zip": ["62704", "02108", "92616", "92616"],
     })
     field = {
         "source_name": "Address",
@@ -293,5 +298,7 @@ def test_remove_duplicates_from_fields():
     assert not addr1.startswith("%%%%") and addr1 == "456 Elm St"
     addr2 = df2["Address"][2]
     assert addr2.startswith("%%%%") and addr2.endswith("%%%%")
-    assert "Orange" not in addr2 and "CA" not in addr2 and "92616" not in addr2
     assert "%%%%123 Orange Grove st. #1323%%%%" == addr2
+    addr3 = df2["Address"][3]
+    assert addr3.startswith("%%%%") and addr3.endswith("%%%%")
+    assert "%%%%123 orange grove st. unit 92616%%%%" == addr3
