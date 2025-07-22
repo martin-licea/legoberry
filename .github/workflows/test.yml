@@ -40,5 +40,5 @@ jobs:
           result = dedup.smart_extract_address('123 Main St, Austin, TX 78701', 'Austin', 'TX', '78701')
           assert result['result'] == '123 Main St'
           assert 'city:Austin' in result['duplicates']
-          print('✅ Interactive features core logic works on ${{ matrix.os }}')
+          print('SUCCESS: Interactive features core logic works on ${{ matrix.os }}')
           "

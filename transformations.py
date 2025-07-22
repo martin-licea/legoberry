@@ -80,13 +80,13 @@ class InteractiveAddressProcessor:
         self.display_comparison(original, extracted, city, state, zip_code, confidence, redundancy, field_values, duplicates_found)
         
         while True:
-            print("Options:")
-            print("  [1] Keep original address")
-            print("  [2] Use extracted address") 
-            print("  [3] Enter custom address")
-            print("  [4] Apply choice to ALL remaining addresses")
-            print("  [s] Skip this address (keep original)")
-            print("  [q] Quit processing")
+            safe_print("Options:")
+            safe_print("  [1] Keep original address")
+            safe_print("  [2] Use extracted address") 
+            safe_print("  [3] Enter custom address")
+            safe_print("  [4] Apply choice to ALL remaining addresses")
+            safe_print("  [s] Skip this address (keep original)")
+            safe_print("  [q] Quit processing")
             
             try:
                 choice = input("\nYour choice (1-4, s, q): ").strip().lower()
@@ -104,13 +104,13 @@ class InteractiveAddressProcessor:
                             result = custom
                             break
                         else:
-                            print("Please enter a valid address.")
+                            safe_print("Please enter a valid address.")
                     break
                 elif choice == '4':
                     # Apply to all
-                    print("\nWhat should be applied to ALL remaining addresses?")
-                    print("  [1] Keep all originals")
-                    print("  [2] Use all extractions")
+                    safe_print("\nWhat should be applied to ALL remaining addresses?")
+                    safe_print("  [1] Keep all originals")
+                    safe_print("  [2] Use all extractions")
                     
                     global_choice = input("Choice for all (1 or 2): ").strip()
                     if global_choice == '1':
@@ -124,20 +124,16 @@ class InteractiveAddressProcessor:
                         result = extracted
                         break
                     else:
-                        print("Invalid choice. Please try again.")
-                        continue
+                        safe_print("Invalid choice. Please try again.")
                 elif choice == 'q':
-                    print("Quitting address processing...")
-                    result = original  # Default to original
-                    self.apply_to_all = True
-                    self.global_choice = 'original'
-                    break
+                    safe_print("Quitting address processing...")
+                    import sys
+                    sys.exit(0)
                 else:
-                    print("Invalid choice. Please try again.")
-                    continue
+                    safe_print("Invalid choice. Please try again.")
                     
-            except (KeyboardInterrupt, EOFError):
-                print("\n\nInterrupted. Keeping original address...")
+            except KeyboardInterrupt:
+                safe_print("\n\nInterrupted. Keeping original address...")
                 result = original
                 break
         
