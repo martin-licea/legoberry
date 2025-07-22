@@ -76,7 +76,43 @@
  - **email**: validates email addresses, preserving valid ones, flagging invalid ones with `%%%%…%%%%`,
    and converting empty strings to `None`.
 
-### test_remove_duplicates_from_fields
-Verifies that `transformations.remove_duplicates_from_fields` removes substrings from a target field
-based on values in specified other fields, wraps the modified field value with `%%%%` markers for review,
-and leaves entries without duplicates unchanged.
+## Smart Address Deduplication Tests
+
+### test_smart_address_dedup_extract_action
+Tests the smart address deduplication with `dedup_action: "extract"`. Verifies that duplicate city, state, and zip components are automatically removed from address fields when confidence and redundancy thresholds are met.
+
+### test_smart_address_dedup_flag_only_action
+Validates the `dedup_action: "flag_only"` behavior, ensuring addresses with duplicates are marked with `%%%%` markers for manual review without modifying the original content.
+
+### test_smart_address_dedup_score_only_action
+Confirms that `dedup_action: "score_only"` analyzes addresses for duplicates but makes no modifications to the original data.
+
+### test_smart_address_dedup_confidence_thresholds
+Tests the confidence threshold mechanism, verifying that only high-confidence extractions are automatically processed while lower-confidence cases are flagged with suggestions.
+
+### test_smart_address_dedup_redundancy_thresholds
+Validates that the redundancy threshold properly controls which addresses are flagged based on the percentage of duplicated content relative to the total address length.
+
+### test_smart_address_dedup_state_normalization
+Tests the state normalization feature, ensuring the system correctly handles both full state names (e.g., "Texas") and abbreviations (e.g., "TX") when detecting duplicates.
+
+### test_smart_address_dedup_edge_cases
+Covers edge cases including null addresses, empty strings, missing field values, and generic address components, ensuring the system handles these scenarios gracefully.
+
+### test_smart_address_dedup_missing_fields
+Verifies correct behavior when some of the specified deduplication fields don't exist in the DataFrame, processing only the available fields.
+
+### test_smart_address_dedup_no_config
+Confirms that the function returns unchanged data when no smart address deduplication configuration is provided.
+
+### test_smart_address_dedup_partial_config
+Tests behavior with incomplete configuration (missing required parameters), ensuring the system safely returns unchanged data.
+
+### test_smart_address_dedup_data_types
+Validates handling of different data types in address component fields, particularly integer zip codes that need string conversion.
+
+### test_smart_address_dedup_complex_addresses
+Tests complex address formats including apartments, suites, unit numbers, and extra components, ensuring important address details are preserved while duplicates are removed.
+
+### test_address_deduplicator_class
+Directly tests the `AddressDeduplicator` class methods including state normalization and smart address extraction, validating confidence scoring and duplicate detection logic.
