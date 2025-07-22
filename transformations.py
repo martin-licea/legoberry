@@ -5,10 +5,22 @@ import re
 from utils import clean_up_drop_fields, create_output_file
 import logging 
 from pathlib import Path
+import sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s')
 logger = logging.getLogger(__name__)
 from pathlib import Path
 ic.configureOutput(contextAbsPath=True)
+
+# Cross-platform encoding safety for interactive features
+def safe_print(text):
+    """Print with cross-platform encoding safety"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # Fallback to ASCII-safe version for older systems
+        safe_text = text.encode('ascii', 'replace').decode('ascii')
+        safe_text = safe_text.replace('🔍', '*').replace('📍', '*').replace('📊', '*').replace('🔄', '*').replace('🔸', '>').replace('🔹', '>').replace('✅', '*')
+        print(safe_text)
 
 # Interactive Address Deduplication Classes
 class InteractiveAddressProcessor:
@@ -19,36 +31,36 @@ class InteractiveAddressProcessor:
     
     def display_comparison(self, original, extracted, city, state, zip_code, confidence, redundancy, field_values=None, duplicates_found=None):
         """Display a clean comparison of the address options"""
-        print("\n" + "="*80)
-        print("ADDRESS DEDUPLICATION REVIEW")
-        print("="*80)
-        print(f"📍 Context: {city}, {state} {zip_code}")
-        print(f"📊 Confidence: {confidence}% | Redundancy: {redundancy}%")
-        print()
+        safe_print("\n" + "="*80)
+        safe_print("ADDRESS DEDUPLICATION REVIEW")
+        safe_print("="*80)
+        safe_print(f"📍 Context: {city}, {state} {zip_code}")
+        safe_print(f"📊 Confidence: {confidence}% | Redundancy: {redundancy}%")
+        safe_print("")
         
         # Show the separate field values being checked
         if field_values:
-            print("📋 Field Values Being Checked:")
+            safe_print("📋 Field Values Being Checked:")
             for field_name, field_value in field_values.items():
                 if field_value and str(field_value).strip() and str(field_value).lower() != "none":
                     # Check if this field contains a duplicate
                     is_duplicate = duplicates_found and any(dup.startswith(field_name.lower() + ":") for dup in duplicates_found)
                     marker = " 🔄" if is_duplicate else ""
-                    print(f"   {field_name.title()}: '{field_value}'{marker}")
-            print()
+                    safe_print(f"   {field_name.title()}: '{field_value}'{marker}")
+            safe_print("")
         
         # Show which specific duplicates were found
         if duplicates_found:
-            print("🔄 Duplicates Found in Address:")
+            safe_print("🔄 Duplicates Found in Address:")
             for dup in duplicates_found:
                 if ":" in dup:
                     field_type, value = dup.split(":", 1)
-                    print(f"   {field_type.title()}: '{value}'")
-            print()
+                    safe_print(f"   {field_type.title()}: '{value}'")
+            safe_print("")
         
-        print(f"🔸 ORIGINAL:  '{original}'")
-        print(f"🔹 EXTRACTED: '{extracted}'")
-        print()
+        safe_print(f"🔸 ORIGINAL:  '{original}'")
+        safe_print(f"🔹 EXTRACTED: '{extracted}'")
+        safe_print("")
     
     def get_user_choice(self, original, extracted, city="", state="", zip_code="", confidence=0, redundancy=0, field_values=None, duplicates_found=None):
         """Interactive prompt for user decision"""
@@ -243,12 +255,12 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     - smart_address_dedup: list of fields to check for duplicates  
     - dedup_action: "extract", "flag_only", "interactive", or "score_only"
     - confidence_threshold: minimum confidence to auto-extract (default: 70)
-    - redundancy_threshold: minimum redundancy % to flag (default: 20)
+    - redundancy_threshold: minimum redundancy % to flag (default: 10)
     """
     remove_fields = field.get("smart_address_dedup", [])
     action = field.get("dedup_action", "extract")
     confidence_threshold = field.get("confidence_threshold", 70)
-    redundancy_threshold = field.get("redundancy_threshold", 20)
+    redundancy_threshold = field.get("redundancy_threshold", 10)
     
     if not remove_fields:
         return df
@@ -263,6 +275,35 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     valid_fields = [f for f in remove_fields if f in df.columns]
     if not valid_fields:
         return df
+
+    def map_address_fields(field_names):
+        """Intelligently map field names to address components"""
+        mapping = {'city': None, 'state': None, 'zip': None}
+        
+        for field_name in field_names:
+            field_lower = field_name.lower()
+            
+            # State patterns (check first to avoid conflicts with 'postal_code' containing 'code')
+            if any(pattern in field_lower for pattern in ['state', 'province', 'region']) or \
+               field_lower in ['st', 'prov'] or \
+               (field_lower.endswith('_st') or field_lower.startswith('st_')) or \
+               ('state' in field_lower and 'code' in field_lower):  # e.g., 'state_code'
+                mapping['state'] = field_name
+            
+            # Zip patterns (more specific to avoid conflicts)
+            elif any(pattern in field_lower for pattern in ['zip', 'postal']) or \
+                 field_lower in ['code', 'postcode'] or \
+                 (field_lower.endswith('code') and 'state' not in field_lower):
+                mapping['zip'] = field_name
+            
+            # City patterns (check last as they're most general)
+            elif any(pattern in field_lower for pattern in ['city', 'town', 'municipality', 'lugar']):
+                mapping['city'] = field_name
+        
+        return mapping
+    
+    # Get dynamic field mapping
+    field_mapping = map_address_fields(valid_fields)
     
     deduplicator = AddressDeduplicator()
     
@@ -276,11 +317,19 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if not isinstance(address, str):
             continue
             
-        # Get field values (convert to strings)
-        field_values = {f.lower(): str(row.get(f, "") or "") for f in valid_fields}
-        city = field_values.get("city", "")
-        state = field_values.get("state", field_values.get("state/province", ""))
-        zip_code = field_values.get("zip", field_values.get("zip/postal code", ""))
+        # Get field values dynamically using the mapping
+        city = ""
+        state = ""
+        zip_code = ""
+        
+        if field_mapping['city'] and field_mapping['city'] in row:
+            city = str(row[field_mapping['city']] or "")
+        
+        if field_mapping['state'] and field_mapping['state'] in row:
+            state = str(row[field_mapping['state']] or "")
+            
+        if field_mapping['zip'] and field_mapping['zip'] in row:
+            zip_code = str(row[field_mapping['zip']] or "")
         
         # Check for duplicates
         extraction = deduplicator.smart_extract_address(address, city, state, zip_code)
@@ -295,8 +344,8 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
             
             # Store all field values for display
             field_display_values = {}
-            for field_name in valid_fields:
-                field_display_values[field_name.lower()] = field_values.get(field_name.lower(), "")
+            for field_name_key in valid_fields:
+                field_display_values[field_name_key.lower()] = str(row.get(field_name_key, "") or "")
             
             addresses_for_review.append({
                 "address": address,
@@ -312,13 +361,13 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
     
     # Interactive review process (only if action is "interactive")
     if addresses_for_review and action == "interactive":
-        print(f"\n🔍 Found {len(addresses_for_review)} addresses with potential duplicates.")
-        print("Starting interactive review...\n")
+        safe_print(f"\n🔍 Found {len(addresses_for_review)} addresses with potential duplicates.")
+        safe_print("Starting interactive review...\n")
         
         processor = InteractiveAddressProcessor()
         
         for i, addr_data in enumerate(addresses_for_review):
-            print(f"\nProgress: {i+1}/{len(addresses_for_review)}")
+            safe_print(f"\nProgress: {i+1}/{len(addresses_for_review)}")
             
             # Prepare field values for display
             display_fields = addr_data.get("field_values", {})
@@ -337,7 +386,7 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
             
             decisions[addr_data["address"]] = decision
         
-        print(f"\n✅ Interactive review completed! Processed {len(decisions)} addresses.")
+        safe_print(f"\n✅ Interactive review completed! Processed {len(decisions)} addresses.")
     
     # Apply decisions
     def process_address(row):
@@ -349,11 +398,19 @@ def smart_address_deduplication(df: pl.DataFrame, field: dict) -> pl.DataFrame:
         if address in decisions:
             return decisions[address]
         
-        # Process based on action type
-        field_values = {f.lower(): str(row.get(f, "") or "") for f in valid_fields}
-        city = field_values.get("city", "")
-        state = field_values.get("state", field_values.get("state/province", ""))
-        zip_code = field_values.get("zip", field_values.get("zip/postal code", ""))
+        # Process based on action type - use dynamic field mapping here too
+        city = ""
+        state = ""
+        zip_code = ""
+        
+        if field_mapping['city'] and field_mapping['city'] in row:
+            city = str(row[field_mapping['city']] or "")
+        
+        if field_mapping['state'] and field_mapping['state'] in row:
+            state = str(row[field_mapping['state']] or "")
+            
+        if field_mapping['zip'] and field_mapping['zip'] in row:
+            zip_code = str(row[field_mapping['zip']] or "")
         
         extraction = deduplicator.smart_extract_address(address, city, state, zip_code)
         total_chars = len(address)
@@ -580,7 +637,7 @@ def remove_duplicates_from_fields(df: pl.DataFrame, field: dict) -> pl.DataFrame
         * "interactive": prompt user for decisions on each flagged address
         * "score_only": analyze only, no modifications
     - confidence_threshold: minimum confidence for auto-extraction (default: 70)
-    - redundancy_threshold: minimum redundancy % to flag addresses (default: 20)
+    - redundancy_threshold: minimum redundancy % to flag addresses (default: 10)
     """
     # Check for smart address deduplication parameters
     smart_fields = field.get("smart_address_dedup", [])

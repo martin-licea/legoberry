@@ -27,7 +27,7 @@ _note_: a period in the "parameter" field denotes a child item
 | smart_address_dedup | list of field names to check for address duplicates; intelligently removes city, state, zip duplicates from address fields | <pre>smart_address_dedup:<br>  - City<br>  - State<br>  - Zip</pre>|
 | dedup_action | defines how to handle detected address duplicates; works with `smart_address_dedup` | `"extract"` (auto-remove), `"flag_only"` (mark with %%%%), `"interactive"` (prompt user), or `"score_only"` (analyze only)|
 | confidence_threshold | minimum confidence percentage for automatic duplicate extraction; only used with `dedup_action: "extract"` | `70` (default), range: 0-100|
-| redundancy_threshold | minimum redundancy percentage to flag addresses as having duplicates | `20` (default), range: 0-100|
+| redundancy_threshold | minimum redundancy percentage to flag addresses as having duplicates | `10` (default), range: 0-100|
 | fields.replace.from| source data string to replace| 'Kindergarden Teacher'|
 | fields.replace.to | target string to replace the from string to| 'kinder'|
 | fields.default_value| new field to be created with hardcoded values. this only works if there is no source_name field specified| 'mch|

@@ -7,15 +7,20 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11']
+    
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
@@ -26,3 +31,14 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/unit
+
+      - name: Test Interactive Features (Mock)
+        run: |
+          python -c "
+          import transformations
+          dedup = transformations.AddressDeduplicator()
+          result = dedup.smart_extract_address('123 Main St, Austin, TX 78701', 'Austin', 'TX', '78701')
+          assert result['result'] == '123 Main St'
+          assert 'city:Austin' in result['duplicates']
+          print('✅ Interactive features core logic works on ${{ matrix.os }}')
+          "

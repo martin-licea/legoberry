@@ -38,8 +38,7 @@ output_file_configs:
     #- 'State'
     #- 'Zip'
     smart_address_dedup: ["City", "State", "Zip"]
-    dedup_action: "interactive"
-    mark_duplicates_only: false
+    dedup_action:  interactive #flag_only
     replace:
     - from: ','
       to: ''
