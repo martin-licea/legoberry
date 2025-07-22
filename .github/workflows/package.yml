@@ -29,7 +29,21 @@ jobs:
 
   pyinstaller-build:
     # needs: [increment_version]
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform_name: 'Windows'
+            shell_cmd: 'dir'
+            zip_cmd: 'Compress-Archive -Path .\dist -DestinationPath .\Legoberry-${{ github.event.release.name }}-Windows.zip'
+            zip_shell: 'pwsh'
+          - os: macos-latest
+            platform_name: 'macOS'
+            shell_cmd: 'ls -la'
+            zip_cmd: 'zip -r Legoberry-${{ github.event.release.name }}-macOS.zip dist/'
+            zip_shell: 'bash'
+    
+    runs-on: ${{ matrix.os }}
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
@@ -37,6 +51,7 @@ jobs:
       - run: echo "${{ github.event.release.name }}"
       #- run: echo "new version is ${{ needs.increment_version.outputs.version }}"
       - run: echo "upload url is ${{ github.event.release.upload_url }}"
+      
       - name: Create Executable
         uses: sayyid5416/pyinstaller@v1
         id: create_exec
@@ -45,16 +60,18 @@ jobs:
           spec: 'legoberry.spec'
           requirements: 'requirements.txt'
           exe_path: ./dist
-          upload_exe_with_name: 'Legoberry-${{ github.event.release.name }}'
-          options: --onefile, --name "Legoberry-${{ github.event.release.name }}", --windowed,
-      - run: |
-          cd dist
-          dir
-      - name: Zip up dist
-        shell: pwsh
+          upload_exe_with_name: 'Legoberry-${{ github.event.release.name }}-${{ matrix.platform_name }}'
+          options: --onefile, --name "Legoberry-${{ github.event.release.name }}-${{ matrix.platform_name }}", --windowed,
+      
+      - name: List dist contents
         run: |
-          Compress-Archive -Path .\dist `
-                          -DestinationPath .\Legoberry-${{ github.event.release.name }}.zip
+          cd dist
+          ${{ matrix.shell_cmd }}
+      
+      - name: Create platform-specific archive
+        shell: ${{ matrix.zip_shell }}
+        run: ${{ matrix.zip_cmd }}
+      
       # - name: release
       #   uses: actions/create-release@v1
       #   id: create_release
@@ -66,12 +83,13 @@ jobs:
       #     body_path: CHANGELOG.md
       #   env:
       #     GITHUB_TOKEN: ${{ github.token }}
-      - name: upload windows artifact
+      
+      - name: Upload ${{ matrix.platform_name }} artifact
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: 'Legoberry-${{ github.event.release.name }}.zip'
-          asset_name: 'Legoberry-${{ github.event.release.name }}.zip'
+          asset_path: 'Legoberry-${{ github.event.release.name }}-${{ matrix.platform_name }}.zip'
+          asset_name: 'Legoberry-${{ github.event.release.name }}-${{ matrix.platform_name }}.zip'
           asset_content_type: application/zip

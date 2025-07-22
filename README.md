@@ -24,7 +24,10 @@ _note_: a period in the "parameter" field denotes a child item
 | fields.target_name | column name to rename to in the target file. must be in quotes | 'tag'|
 | fields.replace | list of different values in the data of this field to replace| <pre>replace:</br>  - from: 'Early Childhood Educator'</br>    to: 'prek'</pre>|
 | replace_with_file | allows you to pass in a file with the contents of 'replace'. makes the config easier to use. | my_file.yml|
-| remove_duplicates_from_fields | list of other field names to remove duplicate substrings from this field; removed parts are wrapped with `%%%%` markers for manual review | <pre>remove_duplicates_from_fields:<br>  - City<br>  - State/Province<br>  - Zip/Postal Code</pre>|
+| smart_address_dedup | list of field names to check for address duplicates; intelligently removes city, state, zip duplicates from address fields | <pre>smart_address_dedup:<br>  - City<br>  - State<br>  - Zip</pre>|
+| dedup_action | defines how to handle detected address duplicates; works with `smart_address_dedup` | `"extract"` (auto-remove), `"flag_only"` (mark with %%%%), `"interactive"` (prompt user), or `"score_only"` (analyze only)|
+| confidence_threshold | minimum confidence percentage for automatic duplicate extraction; only used with `dedup_action: "extract"` | `70` (default), range: 0-100|
+| redundancy_threshold | minimum redundancy percentage to flag addresses as having duplicates | `10` (default), range: 0-100|
 | fields.replace.from| source data string to replace| 'Kindergarden Teacher'|
 | fields.replace.to | target string to replace the from string to| 'kinder'|
 | fields.default_value| new field to be created with hardcoded values. this only works if there is no source_name field specified| 'mch|
@@ -35,6 +38,61 @@ _note_: a period in the "parameter" field denotes a child item
 |fields.split.index| if you split `martin licea` into 2, `martin` would be index 1 and `licea` would be index 2|2|
 |fields.split.target_name | name of new field to be created from the split| 'first|
 |max_target_file_size| the maximum number of rows the target file can contain. this will create multiple files if this number is smaller than the total aggregated rows.| 500 |
+
+## Smart Address Deduplication
+
+The smart address deduplication feature intelligently identifies and handles duplicate address components that users often enter in both the main address field and separate city/state/zip fields.
+
+### How It Works
+
+1. **Analysis**: Compares the address field against city, state, and zip fields
+2. **Scoring**: Calculates confidence (accuracy of extraction) and redundancy (% of duplicated content)
+3. **Processing**: Takes action based on `dedup_action` setting
+
+### Configuration Examples
+
+**Basic Setup:**
+```yaml
+- source_name: 'ADDRESS'
+  alias: 'address'
+  smart_address_dedup: ['City', 'State', 'Zip']
+  dedup_action: 'extract'
+```
+
+**Interactive Mode:**
+```yaml
+- source_name: 'ADDRESS' 
+  alias: 'address'
+  smart_address_dedup: ['City', 'State', 'Zip']
+  dedup_action: 'interactive'
+  confidence_threshold: 80
+  redundancy_threshold: 25
+```
+
+### Dedup Actions
+
+| Action | Behavior | Use Case |
+|--------|----------|----------|
+| `extract` | Automatically removes duplicates with high confidence | Clean, reliable data |
+| `flag_only` | Marks duplicates with `%%%%` for manual review | Want to review all changes |
+| `interactive` | Prompts user for decisions on each flagged address | Mixed data quality, need control |
+| `score_only` | Analyzes but makes no changes | Assessment/reporting only |
+
+### Interactive Mode Features
+
+When using `dedup_action: "interactive"`, you'll see:
+- **Field Values**: Shows the separate city/state/zip field contents
+- **Duplicate Detection**: Highlights which components are duplicated
+- **Confidence & Redundancy Scores**: Helps assess the extraction quality
+- **Multiple Options**: Keep original, use extracted, enter custom, or apply to all
+
+### Example Transformations
+
+| Original | City | State | Zip | Action | Result |
+|----------|------|-------|-----|--------|--------|
+| `123 Main St, Austin, TX 78701` | Austin | TX | 78701 | extract | `123 Main St` |
+| `456 Oak Ave, Dallas TX` | Dallas | TX | 75201 | extract | `456 Oak Ave` |
+| `789 Pine Rd, Houston` | Houston | TX | 77001 | flag_only | `%%%%789 Pine Rd, Houston%%%%` |
 
 
 

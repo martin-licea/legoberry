@@ -267,38 +267,370 @@ def test_fix_casing_name_initial_letter_removal_non_ascii_and_short():
     # "j doe" -> "Doe"; "É Dupont" -> "Dupont"; "X " length <=2 remains unchanged
     assert df_name["name"].to_list() == ["Doe", "Dupont", "X "]
 
-def test_remove_duplicates_from_fields():
+
+
+# =========================================================================
+# SMART ADDRESS DEDUPLICATION TESTS
+# =========================================================================
+
+def test_smart_address_dedup_extract_action():
+    """Test smart address deduplication with extract action"""
+    # Test data with duplicate address components
     df = pl.DataFrame({
         "Address": [
-            "123 Main St, Springfield, IL 62704", 
-            "456 Elm St", 
-            "123 Orange Grove st. #1323, orange CA. 92616",
-            "123 orange grove st. unit 92616 orange ca 92616"
+            "123 Main St, Austin, TX 78701",
+            "456 Oak Ave, Dallas, TX 75201", 
+            "789 Pine Rd, Houston, TX",
+            "321 Elm St",  # No duplicates
+            "654 First St, San Antonio TX 78201"
         ],
-        "City": ["Springfield", "Boston", "Orange", "Orange"],
-        "State": ["IL", "MA", "CA", "CA"],
-        "Zip": ["62704", "02108", "92616", "92616"],
+        "City": ["Austin", "Dallas", "Houston", "", "San Antonio"],
+        "State": ["TX", "TX", "TX", "TX", "TX"],
+        "Zip": ["78701", "75201", "", "78202", "78201"]
     })
-    field = {
+    
+    field_config = {
         "source_name": "Address",
-        "alias": "Address",
-        "remove_duplicates_from_fields": ["City", "State", "Zip"],
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract",
+        "confidence_threshold": 70,
+        "redundancy_threshold": 20
     }
-    df2 = transformations.remove_duplicates_from_fields(df, field)
-    # First row should have duplicates removed and be wrapped with markers
-    addr0 = df2["Address"][0]
-    assert addr0.startswith("%%%%") and addr0.endswith("%%%%")
-    assert "Springfield" not in addr0 and "IL" not in addr0 and "62704" not in addr0
-    assert "%%%%123 Main St%%%%" == addr0
-    # Verify the cleaned address inside the markers
-    assert addr0.strip('%') == "123 Main St"
-    # Second row should remain unchanged
-    addr1 = df2["Address"][1]
-    assert not isinstance(addr1, type(None))
-    assert not addr1.startswith("%%%%") and addr1 == "456 Elm St"
-    addr2 = df2["Address"][2]
-    assert addr2.startswith("%%%%") and addr2.endswith("%%%%")
-    assert "%%%%123 Orange Grove st. #1323%%%%" == addr2
-    addr3 = df2["Address"][3]
-    assert addr3.startswith("%%%%") and addr3.endswith("%%%%")
-    assert "%%%%123 orange grove st. unit 92616%%%%" == addr3
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Verify extractions
+    assert result_df["Address"][0] == "123 Main St"  # Removed city, state, zip
+    assert result_df["Address"][1] == "456 Oak Ave"  # Removed city, state, zip
+    assert result_df["Address"][2] == "789 Pine Rd"  # Removed city, state (no zip to remove)
+    assert result_df["Address"][3] == "321 Elm St"   # No changes (no duplicates)
+    assert result_df["Address"][4] == "654 First St" # Removed city, state, zip
+
+def test_smart_address_dedup_flag_only_action():
+    """Test smart address deduplication with flag_only action"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Austin, TX 78701",
+            "456 Oak Ave",  # No duplicates
+            "789 Pine Rd, Houston, TX 77001"
+        ],
+        "City": ["Austin", "", "Houston"],
+        "State": ["TX", "TX", "TX"],
+        "Zip": ["78701", "78202", "77001"]
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "flag_only",
+        "redundancy_threshold": 15
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Check that duplicates are flagged but not modified
+    assert result_df["Address"][0] == "%%%%123 Main St, Austin, TX 78701%%%%"
+    assert result_df["Address"][1] == "456 Oak Ave"  # No change
+    assert result_df["Address"][2] == "%%%%789 Pine Rd, Houston, TX 77001%%%%"
+
+def test_smart_address_dedup_score_only_action():
+    """Test smart address deduplication with score_only action"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Austin, TX 78701",
+            "456 Oak Ave, Dallas, TX"
+        ],
+        "City": ["Austin", "Dallas"],
+        "State": ["TX", "TX"],
+        "Zip": ["78701", "75201"]
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "score_only"
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Addresses should remain unchanged
+    assert result_df["Address"][0] == "123 Main St, Austin, TX 78701"
+    assert result_df["Address"][1] == "456 Oak Ave, Dallas, TX"
+
+def test_smart_address_dedup_confidence_thresholds():
+    """Test that confidence thresholds work correctly"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Austin, TX 78701",  # High confidence
+            "456 Oak Ave, Dal, TX 75201",     # Lower confidence (partial city match)
+        ],
+        "City": ["Austin", "Dallas"],
+        "State": ["TX", "TX"], 
+        "Zip": ["78701", "75201"]
+    })
+    
+    # Test with high confidence threshold
+    field_config = {
+        "source_name": "Address", 
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract",
+        "confidence_threshold": 90,
+        "redundancy_threshold": 20
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Only high-confidence address should be extracted
+    assert result_df["Address"][0] == "123 Main St"
+    # Low confidence case - the city "Dal" doesn't match "Dallas" so state/zip should still be removed
+    # but since we can't find "Dallas" in the address, confidence will be lower
+    # The partial match extracts state and zip but not city
+    expected_result1 = "456 Oak Ave Dal"  # State and zip removed, comma cleaned up
+    assert result_df["Address"][1] == expected_result1
+
+def test_smart_address_dedup_redundancy_thresholds():
+    """Test that redundancy thresholds work correctly"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Austin, TX 78701",  # High redundancy 
+            "456 Very Long Street Name And Description, Austin, TX 78701",  # Lower redundancy
+        ],
+        "City": ["Austin", "Austin"],
+        "State": ["TX", "TX"],
+        "Zip": ["78701", "78701"]
+    })
+    
+    # Test with very high redundancy threshold
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract",
+        "confidence_threshold": 70,
+        "redundancy_threshold": 60  # Very high threshold - only very redundant addresses
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # First address: "Austin, TX 78701" = 16 chars, total = 30 chars, redundancy = 53%
+    # With threshold 60%, this should NOT be extracted, redundancy too low
+    assert result_df["Address"][0] == "123 Main St, Austin, TX 78701"  # Unchanged
+    # Second address: same duplicates but much longer total, even lower redundancy
+    assert result_df["Address"][1] == "456 Very Long Street Name And Description, Austin, TX 78701"
+
+def test_smart_address_dedup_state_normalization():
+    """Test state normalization (full names vs abbreviations)"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Austin, Texas 78701",      # Full state name
+            "456 Oak Ave, Dallas, TX 75201",         # Abbreviation
+            "789 Pine Rd, Houston, Pennsylvania"     # Wrong state
+        ],
+        "City": ["Austin", "Dallas", "Houston"],
+        "State": ["TX", "TX", "PA"],
+        "Zip": ["78701", "75201", "19101"]
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract",
+        "confidence_threshold": 70,
+        "redundancy_threshold": 20
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should handle both full state name and abbreviation
+    assert result_df["Address"][0] == "123 Main St"  # Texas -> TX match
+    assert result_df["Address"][1] == "456 Oak Ave"  # TX -> TX match  
+    assert result_df["Address"][2] == "789 Pine Rd"  # Pennsylvania -> PA match
+
+def test_smart_address_dedup_edge_cases():
+    """Test edge cases and error handling"""
+    df = pl.DataFrame({
+        "Address": [
+            None,                    # Null address
+            "",                      # Empty address
+            "123 Main St",           # No field values to check
+            "456 Oak Ave, Miami, FL 33101", # Real values that should be detected
+        ],
+        "City": ["Austin", "", None, "Miami"],
+        "State": ["TX", "TX", None, "FL"],
+        "Zip": ["78701", "", None, "33101"]
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract"
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should handle edge cases gracefully
+    assert result_df["Address"][0] is None      # Null stays null
+    assert result_df["Address"][1] == ""        # Empty stays empty
+    assert result_df["Address"][2] == "123 Main St"  # No changes when no field values
+    assert result_df["Address"][3] == "456 Oak Ave"  # Should remove Miami, FL, 33101
+
+def test_smart_address_dedup_missing_fields():
+    """Test behavior when specified dedup fields don't exist"""
+    df = pl.DataFrame({
+        "Address": ["123 Main St, Austin, TX 78701"],
+        "City": ["Austin"]
+        # Missing State and Zip columns
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],  # Some fields missing
+        "dedup_action": "extract"
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should only process available fields (City)
+    assert "Austin" not in result_df["Address"][0]  # City should be removed
+    assert "TX" in result_df["Address"][0]          # State should remain (not available)
+    assert "78701" in result_df["Address"][0]       # Zip should remain (not available)
+
+def test_smart_address_dedup_no_config():
+    """Test that function returns unchanged DataFrame when no smart config"""
+    df = pl.DataFrame({
+        "Address": ["123 Main St, Austin, TX 78701"],
+        "City": ["Austin"],
+        "State": ["TX"],
+        "Zip": ["78701"]
+    })
+    
+    # No smart address dedup config
+    field_config = {
+        "source_name": "Address"
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should return unchanged
+    assert result_df["Address"][0] == "123 Main St, Austin, TX 78701"
+
+def test_smart_address_dedup_partial_config():
+    """Test behavior with partial smart address dedup config"""
+    df = pl.DataFrame({
+        "Address": ["123 Main St, Austin, TX 78701"],
+        "City": ["Austin"],
+        "State": ["TX"],
+        "Zip": ["78701"]
+    })
+    
+    # Has smart_address_dedup but no dedup_action
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"]
+        # Missing dedup_action
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should return unchanged when config is incomplete
+    assert result_df["Address"][0] == "123 Main St, Austin, TX 78701"
+
+def test_smart_address_dedup_data_types():
+    """Test handling of different data types in fields"""
+    df = pl.DataFrame({
+        "Address": ["123 Main St, Austin, TX 78701"],
+        "City": ["Austin"],
+        "State": ["TX"],
+        "Zip": [78701]  # Integer zip code
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract"
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should handle integer zip code correctly by converting to string
+    assert result_df["Address"][0] == "123 Main St"
+
+def test_smart_address_dedup_complex_addresses():
+    """Test with complex address formats"""
+    df = pl.DataFrame({
+        "Address": [
+            "123 Main St, Apt 456, Austin, TX 78701",     # With apartment
+            "789 Oak Ave Suite 100, Dallas, TX 75201",    # With suite
+            "321 Pine Rd #5B, Houston, TX 77001",         # With unit number
+            "456 Elm St, Austin, Texas, United States 78701"  # Extra components
+        ],
+        "City": ["Austin", "Dallas", "Houston", "Austin"],
+        "State": ["TX", "TX", "TX", "TX"],
+        "Zip": ["78701", "75201", "77001", "78701"]
+    })
+    
+    field_config = {
+        "source_name": "Address",
+        "smart_address_dedup": ["City", "State", "Zip"],
+        "dedup_action": "extract",
+        "confidence_threshold": 70,
+        "redundancy_threshold": 15
+    }
+    
+    result_df = transformations.remove_duplicates_from_fields(df, field_config)
+    
+    # Should preserve important address components while removing duplicates
+    assert "Apt 456" in result_df["Address"][0]      # Keep apartment info
+    assert "Suite 100" in result_df["Address"][1]    # Keep suite info  
+    assert "#5B" in result_df["Address"][2]          # Keep unit info
+    assert "United States" in result_df["Address"][3] # Keep extra component
+    
+    # But remove the duplicate city, state, zip from all
+    for i in range(4):
+        addr = result_df["Address"][i]
+        city = df["City"][i] 
+        state = df["State"][i]
+        zip_code = str(df["Zip"][i])
+        
+        # These should not appear at the end of addresses after extraction
+        assert not addr.endswith(f", {city}, {state} {zip_code}")
+        assert not addr.endswith(f", {city}, {state}")
+        assert not addr.endswith(f" {zip_code}")
+
+def test_address_deduplicator_class():
+    """Test the AddressDeduplicator class methods directly"""
+    from transformations import AddressDeduplicator
+    
+    deduplicator = AddressDeduplicator()
+    
+    # Test state normalization
+    assert deduplicator.normalize_state("Texas") == "TX"
+    assert deduplicator.normalize_state("tx") == "TX"
+    assert deduplicator.normalize_state("California") == "CA"
+    assert deduplicator.normalize_state("") == ""
+    assert deduplicator.normalize_state(None) == ""
+    
+    # Test smart extraction
+    result = deduplicator.smart_extract_address(
+        "123 Main St, Austin, TX 78701",
+        city="Austin",
+        state="TX", 
+        zip_code="78701"
+    )
+    
+    assert result["result"] == "123 Main St"
+    assert result["confidence"] == 100
+    assert "city:Austin" in result["duplicates"]
+    assert "state:TX" in result["duplicates"] 
+    assert "zip:78701" in result["duplicates"]
+    
+    # Test with no duplicates
+    result2 = deduplicator.smart_extract_address(
+        "456 Oak Ave",
+        city="Dallas",
+        state="TX",
+        zip_code="75201"
+    )
+    
+    assert result2["result"] == "456 Oak Ave"
+    assert result2["confidence"] == 10  # Low confidence when no duplicates found
+    assert len(result2["duplicates"]) == 0

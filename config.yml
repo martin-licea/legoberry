@@ -33,35 +33,41 @@ output_file_configs:
   - source_name: 'Address'
     alias: 'Address 1'
     casing: 'proper'
+    #remove_duplicates_from_fields:
+    #- 'City'
+    #- 'State'
+    #- 'Zip'
+    smart_address_dedup: ["City", "State", "Zip"]
+    dedup_action:  interactive #flag_only
     replace:
     - from: ','
       to: ''
-    - from: "[Dd]r($| )"
-      to: 'Dr.$1'
+    - from: "(?i)\bDr\b"
+      to: 'Dr.'
       is_expression: true
-    - from: '[aA]ve($| )'
-      to: ' Ave.$1'
+    - from: '(?i)\bAve\b'
+      to: 'Ave.'
       is_expression: true
-    - from: '[sS]t($| )'
-      to: ' St.$1'
+    - from: '(?i)\bSt\b'
+      to: 'St.'
       is_expression: true
-    - from: '[rR]d($| )'
-      to: ' Rd.$1'
+    - from: '(?i)\bRd\b'
+      to: 'Rd.'
       is_expression: true
-    - from: '[lL]n($| )'
-      to: ' Ln.$1'
+    - from: '(?i)\bLn\b'
+      to: 'Ln.'
       is_expression: true
-    - from: '[cC]t($| )'
-      to: ' Ct.$1'
+    - from: '(?i)\bCt\b'
+      to: 'Ct.'
       is_expression: true
-    - from: '[bB]lvd($| )'
-      to: ' Blvd.$1'
+    - from: '(?i)\bBlvd\b'
+      to: 'Blvd.'
       is_expression: true
-    - from: '[pP]kwy($| )'
-      to: ' Pkwy.$1'
+    - from: '(?i)\bPkwy\b'
+      to: 'Pkwy.'
       is_expression: true
-    - from: '[cC]ir($| )'
-      to: ' Cir.$1'
+    - from: '(?i)\bCir\b'
+      to: 'Cir.'
       is_expression: true
   - source_name: '\‘Address 2'
     alias: 'Address 2'
